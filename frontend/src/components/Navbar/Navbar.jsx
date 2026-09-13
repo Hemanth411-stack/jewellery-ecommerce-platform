@@ -49,7 +49,8 @@ function Navbar() {
     setSearchTerm(new URLSearchParams(location.search).get("q") || "");
     setSearchOpen(false);
     setActiveResult(-1);
-  }, [location.pathname, location.search]);
+    setIsOpen(false);
+  }, [location.pathname, location.search, location.hash]);
 
   useEffect(() => {
     const closeOnOutsideClick = (event) => {
@@ -60,6 +61,7 @@ function Navbar() {
   }, []);
 
   const showSearch = () => {
+    setIsOpen(false);
     setSearchOpen(true);
     if (!products.length && !productsLoading) dispatch(fetchProducts());
   };
@@ -185,14 +187,17 @@ function Navbar() {
         </div>
 
         <div className="flex items-center gap-2 lg:hidden">
-          <Link to="/cart" className="relative rounded-md p-2 text-ink" aria-label={`Cart, ${cartCount} items`}>
+          <Link to="/cart" onClick={() => setIsOpen(false)} className="relative rounded-md p-2 text-ink" aria-label={`Cart, ${cartCount} items`}>
             <ShoppingCart size={23} />
             {cartCount > 0 && <span className="absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-rosewood px-1 text-[10px] font-bold text-white">{cartCount}</span>}
           </Link>
           <button
+            type="button"
             className="rounded-md p-2 text-ink lg:hidden"
-            onClick={() => setIsOpen((value) => !value)}
-            aria-label="Toggle navigation"
+            onClick={() => { setSearchOpen(false); setIsOpen((value) => !value); }}
+            aria-label={isOpen ? "Close navigation menu" : "Open navigation menu"}
+            aria-expanded={isOpen}
+            aria-controls="mobile-navigation"
           >
             {isOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
@@ -254,75 +259,43 @@ function Navbar() {
       </div>}
 
       {isOpen && (
-        <div className="border-t border-ink/10 bg-pearl px-4 py-4 lg:hidden">
-          <div className="flex flex-col gap-3">
-            {pageLinks.map((link) => (
-              <Link
-                key={link.label}
-                to={link.path}
-                onClick={() => setIsOpen(false)}
-                className="rounded-md px-3 py-2 text-sm font-semibold text-ink/75 hover:bg-champagne hover:text-ink"
-              >
-                {link.label}
-              </Link>
-            ))}
-            <p className="px-3 text-xs font-semibold uppercase tracking-[0.18em] text-bronze">Category</p>
-            {categoryLinks.map((link) => (
-              <Link
-                key={link.label}
-                to={link.path}
-                onClick={() => setIsOpen(false)}
-                className="rounded-md px-3 py-2 text-sm font-medium text-ink/75 hover:bg-champagne hover:text-ink"
-              >
-                {link.label}
-              </Link>
-            ))}
-            <div className="mt-2 grid gap-3 border-t border-ink/10 pt-4">
-              {isAuthenticated && (
-                <>
-                  {user?.role === "admin" && (
-                    <Link to="/admin/products" onClick={() => setIsOpen(false)} className="rounded-md border border-ink/10 px-4 py-2 text-sm font-semibold text-ink">
-                      Admin
-                    </Link>
-                  )}
-                  <Link to="/orders" onClick={() => setIsOpen(false)} className="rounded-md border border-ink/10 px-4 py-2 text-sm font-semibold text-ink">
-                    Orders
-                  </Link>
-                  <Link to="/wishlist" onClick={() => setIsOpen(false)} className="rounded-md border border-ink/10 px-4 py-2 text-sm font-semibold text-ink">
-                    Wishlist
-                  </Link>
-                  <Link to="/cart" onClick={() => setIsOpen(false)} className="rounded-md border border-ink/10 px-4 py-2 text-sm font-semibold text-ink">
-                    Cart {cartCount > 0 && `(${cartCount})`}
-                  </Link>
-                  <Link to="/profile" onClick={() => setIsOpen(false)} className="rounded-md border border-ink/10 px-4 py-2 text-sm font-semibold text-ink">
-                    Profile
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    className="rounded-md border border-ink/10 px-4 py-2 text-left text-sm font-semibold text-ink"
-                  >
-                    Logout
-                  </button>
-                </>
-              )}
-              {!isAuthenticated && (
-                <>
-                  <Link to="/cart" onClick={() => setIsOpen(false)} className="rounded-md border border-ink/10 px-4 py-2 text-sm font-semibold text-ink">
-                    Cart {cartCount > 0 && `(${cartCount})`}
-                  </Link>
-                  <Link
-                    to="/login"
-                    onClick={() => setIsOpen(false)}
-                    className="rounded-md bg-ink px-4 py-2 text-center text-sm font-semibold text-white"
-                  >
-                    Login
-                  </Link>
-                </>
-              )}
+        <nav id="mobile-navigation" aria-label="Mobile navigation" className="absolute left-0 right-0 top-full max-h-[calc(100dvh-11rem)] overflow-y-auto overscroll-contain border-t border-ink/10 bg-pearl px-4 py-4 shadow-soft lg:hidden">
+          <div className="mx-auto max-w-7xl space-y-4">
+            {isAuthenticated ? (
+              <div className="rounded-xl border border-ink/10 bg-white p-4">
+                <p className="truncate text-sm font-bold text-ink">{user?.name || "My account"}</p>
+                {user?.email && <p className="mt-1 truncate text-xs text-ink/50">{user.email}</p>}
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <Link to="/profile" onClick={() => setIsOpen(false)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-ink px-3 py-2 text-sm font-semibold text-white"><User size={17} /> Profile</Link>
+                  <button type="button" onClick={handleLogout} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-ink/15 px-3 py-2 text-sm font-semibold text-ink"><LogOut size={17} /> Logout</button>
+                </div>
+              </div>
+            ) : (
+              <Link to="/login" onClick={() => setIsOpen(false)} className="flex min-h-11 items-center justify-center rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white">Login or create an account</Link>
+            )}
+
+            <div className="grid grid-cols-2 gap-2">
+              {pageLinks.map((link) => (
+                <Link key={link.label} to={link.path} onClick={() => setIsOpen(false)} className="flex min-h-11 items-center rounded-md border border-ink/10 bg-white px-4 py-2 text-sm font-semibold text-ink/75">{link.label}</Link>
+              ))}
+              <Link to="/cart" onClick={() => setIsOpen(false)} className="flex min-h-11 items-center gap-2 rounded-md border border-ink/10 bg-white px-4 py-2 text-sm font-semibold text-ink/75"><ShoppingCart size={16} /> Cart {cartCount > 0 ? `(${cartCount})` : ""}</Link>
+              {isAuthenticated && <>
+                <Link to="/orders" onClick={() => setIsOpen(false)} className="flex min-h-11 items-center gap-2 rounded-md border border-ink/10 bg-white px-4 py-2 text-sm font-semibold text-ink/75"><PackageCheck size={16} /> Orders</Link>
+                <Link to="/wishlist" onClick={() => setIsOpen(false)} className="flex min-h-11 items-center gap-2 rounded-md border border-ink/10 bg-white px-4 py-2 text-sm font-semibold text-ink/75"><Heart size={16} /> Wishlist</Link>
+                {user?.role === "admin" && <Link to="/admin/products" onClick={() => setIsOpen(false)} className="flex min-h-11 items-center rounded-md border border-ink/10 bg-white px-4 py-2 text-sm font-semibold text-ink/75">Admin</Link>}
+              </>}
             </div>
+
+            <details className="rounded-xl border border-ink/10 bg-white px-4 py-3">
+              <summary className="cursor-pointer text-sm font-semibold text-ink">Shop by category</summary>
+              <div className="mt-3 grid grid-cols-2 gap-2 border-t border-ink/10 pt-3">
+                {categoryLinks.map((link) => (
+                  <Link key={link.label} to={link.path} onClick={() => setIsOpen(false)} className="rounded-md bg-pearl px-3 py-2.5 text-sm font-medium text-ink/70">{link.label}</Link>
+                ))}
+              </div>
+            </details>
           </div>
-        </div>
+        </nav>
       )}
     </header>
   );

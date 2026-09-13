@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Link, useLocation, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import ProductCard from "../../components/ProductCard/ProductCard.jsx";
 import SectionTitle from "../../components/SectionTitle/SectionTitle.jsx";
 import { fetchProducts } from "../../features/products/productSlice.js";
@@ -96,7 +96,6 @@ const PRODUCTS_PER_PAGE = 8;
 
 function Home() {
   const dispatch = useDispatch();
-  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { products: apiProducts, isLoading, error } = useSelector((state) => state.products);
   const { isAuthenticated } = useSelector((state) => state.auth);
@@ -154,11 +153,7 @@ function Home() {
 
     setSelectedCategory(nextCategory);
 
-    if (location.hash) {
-      const section = document.getElementById(location.hash.slice(1));
-      window.setTimeout(() => section?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
-    }
-  }, [categoryOptions, location.hash, searchParams]);
+  }, [categoryOptions, searchParams]);
 
   const handleCategoryClick = (categoryName) => {
     setSelectedCategory(categoryName);
@@ -257,7 +252,7 @@ function Home() {
         </div>
       </section>
 
-      <section id="shop-products" className="bg-white px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
+      <section id="shop-products" className="scroll-mt-40 bg-white px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
         <SectionTitle
           eyebrow="Shop"
           title="Explore the Collection"

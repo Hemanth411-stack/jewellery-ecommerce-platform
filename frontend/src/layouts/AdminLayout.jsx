@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useSelector } from "react-redux";
 import { Link, Navigate, Outlet, useLocation } from "react-router-dom";
 import AdminSidebar from "../components/AdminSidebar/AdminSidebar.jsx";
+import ScrollManager from "../components/ScrollManager.jsx";
 
 function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -20,6 +21,7 @@ function AdminLayout() {
 
   return (
     <div className="min-h-screen bg-pearl text-ink lg:grid lg:grid-cols-[280px_1fr]">
+      <ScrollManager />
       <div className="hidden lg:block">
         <AdminSidebar />
       </div>
