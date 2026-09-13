@@ -14,11 +14,11 @@ const initialState = {
 const getErrorMessage = (error) =>
   error.response?.data?.message || error.message || "Something went wrong";
 
-export const placeOrder = createAsyncThunk(
-  "orders/place",
-  async (checkoutData, thunkAPI) => {
+export const confirmOnlineOrder = createAsyncThunk(
+  "orders/confirmOnline",
+  async ({ orderId, paymentResponse }, thunkAPI) => {
     try {
-      return await orderService.checkout(checkoutData);
+      return await orderService.verifyOnlinePayment(orderId, paymentResponse);
     } catch (error) {
       return thunkAPI.rejectWithValue(getErrorMessage(error));
     }
@@ -52,6 +52,17 @@ export const updateAdminOrderStatus = createAsyncThunk(
   }
 );
 
+export const updateAdminTrackingReference = createAsyncThunk(
+  "orders/updateAdminTrackingReference",
+  async ({ orderId, trackingReference }, thunkAPI) => {
+    try {
+      return await orderService.updateTrackingReference(orderId, trackingReference);
+    } catch (error) {
+      return thunkAPI.rejectWithValue(getErrorMessage(error));
+    }
+  }
+);
+
 const orderSlice = createSlice({
   name: "orders",
   initialState,
@@ -63,18 +74,17 @@ const orderSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(placeOrder.pending, (state) => {
+      .addCase(confirmOnlineOrder.pending, (state) => {
         state.isPlacing = true;
         state.error = null;
-        state.message = null;
       })
-      .addCase(placeOrder.fulfilled, (state, action) => {
+      .addCase(confirmOnlineOrder.fulfilled, (state, action) => {
         state.isPlacing = false;
         state.latestOrder = action.payload.order;
         state.orders = [action.payload.order, ...state.orders];
         state.message = action.payload.message;
       })
-      .addCase(placeOrder.rejected, (state, action) => {
+      .addCase(confirmOnlineOrder.rejected, (state, action) => {
         state.isPlacing = false;
         state.error = action.payload;
       })
@@ -114,6 +124,22 @@ const orderSlice = createSlice({
         state.message = action.payload.message;
       })
       .addCase(updateAdminOrderStatus.rejected, (state, action) => {
+        state.isUpdating = false;
+        state.error = action.payload;
+      })
+      .addCase(updateAdminTrackingReference.pending, (state) => {
+        state.isUpdating = true;
+        state.error = null;
+        state.message = null;
+      })
+      .addCase(updateAdminTrackingReference.fulfilled, (state, action) => {
+        state.isUpdating = false;
+        state.orders = state.orders.map((order) =>
+          order._id === action.payload.order._id ? action.payload.order : order
+        );
+        state.message = action.payload.message;
+      })
+      .addCase(updateAdminTrackingReference.rejected, (state, action) => {
         state.isUpdating = false;
         state.error = action.payload;
       });

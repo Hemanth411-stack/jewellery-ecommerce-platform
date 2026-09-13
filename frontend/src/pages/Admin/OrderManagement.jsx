@@ -6,6 +6,7 @@ import Loader from "../../components/common/Loader.jsx";
 import {
   clearOrderStatus,
   fetchAdminOrders,
+  updateAdminTrackingReference,
   updateAdminOrderStatus,
 } from "../../features/orders/orderSlice.js";
 
@@ -26,6 +27,7 @@ const formatDate = (date) =>
   }).format(new Date(date));
 
 const getProductId = (product) => product?._id || product;
+const getVariantLabel = (variant) => [variant?.color, variant?.size].filter(Boolean).join(" / ");
 
 const statusStyles = {
   placed: "bg-blue-50 text-blue-700",
@@ -161,7 +163,7 @@ function DetailModal({ order, mode, onClose }) {
               </div>
               <div className="hidden grid-cols-[minmax(0,1fr)_112px_72px_112px_112px] border-b border-ink/10 bg-champagne px-4 py-3 text-xs font-bold uppercase tracking-[0.14em] text-ink/50 md:grid">
                 <span>Product</span>
-                <span>SKU</span>
+                <span>Option</span>
                 <span>Qty</span>
                 <span>Price</span>
                 <span className="text-right">Total</span>
@@ -169,6 +171,7 @@ function DetailModal({ order, mode, onClose }) {
               <div className="divide-y divide-ink/10 bg-white">
                 {order.items.map((item) => {
                   const productId = getProductId(item.product);
+                  const variantLabel = getVariantLabel(item.variant) || "-";
 
                   return (
                     <div key={`${order._id}-${productId}`} className="grid gap-3 px-4 py-4 md:grid-cols-[minmax(0,1fr)_112px_72px_112px_112px] md:items-center">
@@ -182,10 +185,10 @@ function DetailModal({ order, mode, onClose }) {
                         </Link>
                         <div className="min-w-0">
                           <p className="truncate font-semibold text-ink">{item.name}</p>
-                          <p className="mt-1 text-xs text-ink/45 md:hidden">SKU {item.sku}</p>
+                          <p className="mt-1 text-xs text-ink/45 md:hidden">{variantLabel}</p>
                         </div>
                       </div>
-                      <p className="hidden text-sm text-ink/60 md:block">{item.sku}</p>
+                      <p className="hidden text-sm text-ink/60 md:block">{variantLabel}</p>
                       <p className="text-sm text-ink/60">Qty {item.quantity}</p>
                       <p className="text-sm text-ink/60">{formatPrice(item.price)}</p>
                       <p className="text-sm font-bold text-bronze md:text-right">{formatPrice(item.lineTotal)}</p>
@@ -206,17 +209,17 @@ function DetailModal({ order, mode, onClose }) {
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-bronze">Order Summary</p>
                 <div className="mt-4 grid gap-3 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-ink/55">Items total</span>
+                    <span className="text-ink/55">Item total</span>
                     <span className="font-semibold">{formatPrice(order.itemsTotal)}</span>
                   </div>
-                  <div className="flex justify-between">
+                  {order.shippingFee > 0 && <div className="flex justify-between">
                     <span className="text-ink/55">Shipping</span>
                     <span className="font-semibold">{order.shippingFee ? formatPrice(order.shippingFee) : "Free"}</span>
-                  </div>
-                  <div className="flex justify-between border-t border-ink/10 pt-3 text-base">
+                  </div>}
+                  {order.shippingFee > 0 && <div className="flex justify-between border-t border-ink/10 pt-3 text-base">
                     <span className="font-bold">Grand total</span>
                     <span className="font-bold text-bronze">{formatPrice(order.grandTotal)}</span>
-                  </div>
+                  </div>}
                 </div>
               </div>
             </aside>
@@ -243,6 +246,7 @@ function OrderManagement() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [detailMode, setDetailMode] = useState("order");
+  const [trackingDrafts, setTrackingDrafts] = useState({});
 
   useEffect(() => {
     dispatch(fetchAdminOrders());
@@ -276,6 +280,14 @@ function OrderManagement() {
 
   const handleStatusChange = (orderId, status) => {
     dispatch(updateAdminOrderStatus({ orderId, status }));
+  };
+
+  const handleTrackingSave = (orderId, currentReference) => {
+    const trackingReference = (trackingDrafts[orderId] ?? currentReference ?? "").trim();
+
+    if (!trackingReference) return;
+
+    dispatch(updateAdminTrackingReference({ orderId, trackingReference }));
   };
 
   return (
@@ -348,6 +360,7 @@ function OrderManagement() {
                   <th className="px-5 py-4">Items</th>
                   <th className="px-5 py-4">Total</th>
                   <th className="px-5 py-4">Status</th>
+                  <th className="px-5 py-4">DTDC Reference</th>
                   <th className="px-5 py-4 text-right">Actions</th>
                 </tr>
               </thead>
@@ -384,6 +397,29 @@ function OrderManagement() {
                               <option key={status} value={status}>{status}</option>
                             ))}
                           </select>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="flex min-w-56 gap-2">
+                          <input
+                            type="text"
+                            value={trackingDrafts[order._id] ?? order.trackingReference ?? ""}
+                            onChange={(event) => setTrackingDrafts((current) => ({
+                              ...current,
+                              [order._id]: event.target.value,
+                            }))}
+                            placeholder="Enter DTDC reference"
+                            maxLength={100}
+                            className="min-w-0 flex-1 rounded-md border border-ink/10 bg-white px-3 py-2 text-xs outline-none focus:border-bronze"
+                          />
+                          <button
+                            type="button"
+                            disabled={isUpdating || !(trackingDrafts[order._id] ?? order.trackingReference ?? "").trim()}
+                            onClick={() => handleTrackingSave(order._id, order.trackingReference)}
+                            className="rounded-md bg-bronze px-3 py-2 text-xs font-semibold text-white transition hover:bg-rosewood disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            Save
+                          </button>
                         </div>
                       </td>
                       <td className="px-5 py-4">

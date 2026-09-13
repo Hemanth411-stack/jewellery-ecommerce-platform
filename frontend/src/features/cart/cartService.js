@@ -5,18 +5,18 @@ const getCart = async () => {
   return response.data;
 };
 
-const addToCart = async (productId, quantity = 1) => {
-  const response = await api.post(`/cart/${productId}`, { quantity });
+const addToCart = async (productId, quantity = 1, variantId = "") => {
+  const response = await api.post(`/cart/${productId}`, { quantity, variantId });
   return response.data;
 };
 
-const updateCartItem = async (productId, quantity) => {
-  const response = await api.put(`/cart/${productId}`, { quantity });
+const updateCartItem = async (productId, quantity, variantId = "") => {
+  const response = await api.put(`/cart/${productId}`, { quantity, variantId });
   return response.data;
 };
 
-const removeFromCart = async (productId) => {
-  const response = await api.delete(`/cart/${productId}`);
+const removeFromCart = async (productId, variantId = "") => {
+  const response = await api.delete(`/cart/${productId}`, { data: { variantId } });
   return response.data;
 };
 

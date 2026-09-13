@@ -11,15 +11,34 @@ import AppError from "../utils/appError.js";
 const hasValue = (value) => value !== undefined && value !== null && String(value).trim() !== "";
 
 const validateProductPayload = (payload) => {
-  const requiredFields = ["name", "sku", "category", "description", "price", "stock", "metal"];
+  const requiredFields = ["name", "category", "description"];
   const missingField = requiredFields.find((field) => !hasValue(payload[field]));
 
   if (missingField) {
     throw new AppError(`${missingField} is required`, 400);
   }
 
-  if (Number(payload.price) < 0 || Number(payload.stock) < 0) {
-    throw new AppError("Price and stock must be positive values", 400);
+  if (payload.variants !== undefined && !Array.isArray(payload.variants)) {
+    throw new AppError("Options must be a list", 400);
+  }
+
+  if (payload.variants?.length) {
+    for (const option of payload.variants) {
+      if (!option || (!hasValue(option.color) && !hasValue(option.size))) {
+        throw new AppError("Each option needs a color or size", 400);
+      }
+      if (!hasValue(option.price) || !Number.isFinite(Number(option.price)) || Number(option.price) < 0 ||
+          !hasValue(option.stock) || !Number.isInteger(Number(option.stock)) || Number(option.stock) < 0) {
+        throw new AppError("Each option needs a valid price and stock", 400);
+      }
+    }
+  } else if (!hasValue(payload.price) || !Number.isFinite(Number(payload.price)) || Number(payload.price) < 0 ||
+             !hasValue(payload.stock) || !Number.isInteger(Number(payload.stock)) || Number(payload.stock) < 0) {
+    throw new AppError("Price and stock are required when there are no options", 400);
+  }
+
+  if (hasValue(payload.compareAtPrice) && (!Number.isFinite(Number(payload.compareAtPrice)) || Number(payload.compareAtPrice) < 0)) {
+    throw new AppError("Compare price must be a valid amount", 400);
   }
 };
 

@@ -1,6 +1,7 @@
 import {
   createUser,
   formatUserResponse,
+  updateUserProfile,
   validateUserCredentials,
 } from "../services/authService.js";
 import AppError from "../utils/appError.js";
@@ -62,4 +63,24 @@ export const getCurrentUser = async (req, res) => {
     message: "Current user fetched successfully",
     user: formatUserResponse(req.user),
   });
+};
+
+export const updateCurrentUser = async (req, res, next) => {
+  try {
+    const { name, email, phone } = req.body;
+
+    if (![name, email, phone].every(required)) {
+      throw new AppError("Name, email, and phone are required", 400);
+    }
+
+    const user = await updateUserProfile(req.user._id, { name, email, phone });
+
+    res.status(200).json({
+      success: true,
+      message: "Profile updated successfully",
+      user,
+    });
+  } catch (error) {
+    next(error);
+  }
 };

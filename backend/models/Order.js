@@ -21,6 +21,10 @@ const orderItemSchema = new mongoose.Schema(
     name: { type: String, required: true },
     sku: { type: String, required: true },
     image: { type: String, default: "" },
+    variant: {
+      color: { type: String, trim: true, default: "" },
+      size: { type: String, trim: true, default: "" },
+    },
     price: { type: Number, required: true },
     quantity: { type: Number, required: true, min: 1 },
     lineTotal: { type: Number, required: true },
@@ -51,8 +55,16 @@ const orderSchema = new mongoose.Schema(
     paymentMethod: {
       type: String,
       enum: ["COD", "ONLINE"],
-      default: "COD",
+      default: "ONLINE",
     },
+    paymentStatus: {
+      type: String,
+      enum: ["pending", "paid", "unpaid"],
+      default: "unpaid",
+    },
+    razorpayOrderId: { type: String, trim: true, default: "" },
+    razorpayPaymentId: { type: String, trim: true, default: "" },
+    checkoutCartUpdatedAt: { type: Date },
     itemsTotal: {
       type: Number,
       required: true,
@@ -69,6 +81,12 @@ const orderSchema = new mongoose.Schema(
       type: String,
       enum: ["placed", "confirmed", "packed", "shipped", "delivered", "cancelled"],
       default: "placed",
+    },
+    trackingReference: {
+      type: String,
+      trim: true,
+      maxlength: 100,
+      default: "",
     },
   },
   {

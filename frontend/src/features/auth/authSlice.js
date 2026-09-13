@@ -59,6 +59,17 @@ export const getCurrentUser = createAsyncThunk(
   }
 );
 
+export const updateCurrentUser = createAsyncThunk(
+  "auth/updateMe",
+  async (userData, thunkAPI) => {
+    try {
+      return await authService.updateCurrentUser(userData);
+    } catch (error) {
+      return thunkAPI.rejectWithValue(getErrorMessage(error));
+    }
+  }
+);
+
 export const logoutUser = createAsyncThunk("auth/logout", async () => {
   authService.logout();
 });
@@ -121,6 +132,21 @@ const authSlice = createSlice({
         state.isAuthenticated = false;
         state.user = null;
         state.token = null;
+        state.error = action.payload;
+      })
+      .addCase(updateCurrentUser.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+        state.message = null;
+      })
+      .addCase(updateCurrentUser.fulfilled, (state, action) => {
+        localStorage.setItem("user", JSON.stringify(action.payload.user));
+        state.isLoading = false;
+        state.user = action.payload.user;
+        state.message = action.payload.message;
+      })
+      .addCase(updateCurrentUser.rejected, (state, action) => {
+        state.isLoading = false;
         state.error = action.payload;
       })
       .addCase(logoutUser.fulfilled, (state) => {

@@ -53,4 +53,29 @@ export const validateUserCredentials = async (email, password) => {
   return sanitizeUser(user);
 };
 
+export const updateUserProfile = async (userId, { name, email, phone }) => {
+  const normalizedEmail = email.toLowerCase().trim();
+  const existingUser = await User.findOne({ email: normalizedEmail, _id: { $ne: userId } });
+
+  if (existingUser) {
+    throw new AppError("Email is already registered", 409);
+  }
+
+  const user = await User.findByIdAndUpdate(
+    userId,
+    {
+      name: name.trim(),
+      email: normalizedEmail,
+      phone: phone.trim(),
+    },
+    { new: true, runValidators: true }
+  );
+
+  if (!user) {
+    throw new AppError("User not found", 404);
+  }
+
+  return sanitizeUser(user);
+};
+
 export const formatUserResponse = sanitizeUser;

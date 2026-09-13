@@ -5,8 +5,9 @@ import { Link, Navigate } from "react-router-dom";
 import Button from "../../components/common/Button.jsx";
 import Input from "../../components/common/Input.jsx";
 import Loader from "../../components/common/Loader.jsx";
-import { clearCartState, fetchCart } from "../../features/cart/cartSlice.js";
-import { clearOrderStatus, placeOrder } from "../../features/orders/orderSlice.js";
+import { fetchCart } from "../../features/cart/cartSlice.js";
+import { clearOrderStatus, confirmOnlineOrder } from "../../features/orders/orderSlice.js";
+import orderService from "../../features/orders/orderService.js";
 
 const emptyAddress = {
   fullName: "",
@@ -26,6 +27,18 @@ const formatPrice = (price) =>
     currency: "INR",
     maximumFractionDigits: 0,
   }).format(price || 0);
+
+const getItemPrice = (item) => item.variant?.price ?? item.product.price;
+const getVariantLabel = (variant) => [variant?.color, variant?.size].filter(Boolean).join(" / ");
+
+const loadRazorpay = () => new Promise((resolve, reject) => {
+  if (window.Razorpay) return resolve();
+  const script = document.createElement("script");
+  script.src = "https://checkout.razorpay.com/v1/checkout.js";
+  script.onload = resolve;
+  script.onerror = () => reject(new Error("Could not load Razorpay checkout. Please try again."));
+  document.body.appendChild(script);
+});
 
 function AddressFields({ title, prefix, values, onChange }) {
   const fieldName = (name) => `${prefix}.${name}`;
@@ -67,14 +80,14 @@ function Checkout() {
       phone: user?.phone || "",
       email: user?.email || "",
     },
-    paymentMethod: "COD",
   });
   const [localError, setLocalError] = useState("");
+  const [onlineBusy, setOnlineBusy] = useState(false);
+  const [pendingVerification, setPendingVerification] = useState(null);
 
   const totals = useMemo(() => {
-    const itemsTotal = items.reduce((total, item) => total + item.product.price * item.quantity, 0);
-    const shippingFee = itemsTotal >= 999 || itemsTotal === 0 ? 0 : 99;
-    return { itemsTotal, shippingFee, grandTotal: itemsTotal + shippingFee };
+    const itemsTotal = items.reduce((total, item) => total + getItemPrice(item) * item.quantity, 0);
+    return { itemsTotal };
   }, [items]);
 
   useEffect(() => {
@@ -137,19 +150,57 @@ function Checkout() {
   const handleSubmit = async (event) => {
     event.preventDefault();
 
+    if (onlineBusy || isPlacing) return;
     if (!validate()) return;
 
+    const checkoutData = {
+      deliveryAddress: formData.deliveryAddress,
+      billingAddress: sameAsDelivery ? formData.deliveryAddress : formData.billingAddress,
+    };
+
+    setOnlineBusy(true);
+    setLocalError("");
     try {
-      await dispatch(
-        placeOrder({
-          deliveryAddress: formData.deliveryAddress,
-          billingAddress: sameAsDelivery ? formData.deliveryAddress : formData.billingAddress,
-          paymentMethod: formData.paymentMethod,
-        })
-      ).unwrap();
-      dispatch(clearCartState());
-    } catch {
-      // Redux renders the API error.
+        await loadRazorpay();
+        const { payment } = await orderService.startOnlineCheckout(checkoutData);
+        const razorpay = new window.Razorpay({
+          key: payment.keyId,
+          amount: payment.amount,
+          currency: payment.currency,
+          order_id: payment.razorpayOrderId,
+          name: "Himapriya",
+          description: "Jewellery order",
+          prefill: {
+            name: checkoutData.billingAddress.fullName,
+            email: checkoutData.billingAddress.email || user?.email || "",
+            contact: checkoutData.billingAddress.phone,
+          },
+          theme: { color: "#A77B5B" },
+          handler: async (paymentResponse) => {
+            const verification = { orderId: payment.orderId, paymentResponse };
+            setPendingVerification(verification);
+            try {
+              await dispatch(confirmOnlineOrder(verification)).unwrap();
+              setPendingVerification(null);
+              dispatch(fetchCart());
+            } catch {
+              // Keep the payment response so verification can be retried.
+            } finally {
+              setOnlineBusy(false);
+            }
+          },
+          modal: {
+            ondismiss: () => setOnlineBusy(false),
+          },
+        });
+        razorpay.on("payment.failed", (failure) => {
+          setLocalError(failure.error?.description || "Payment failed. Please try again.");
+          setOnlineBusy(false);
+        });
+        razorpay.open();
+    } catch (checkoutError) {
+      setLocalError(checkoutError.response?.data?.message || checkoutError.message || "Could not start payment.");
+      setOnlineBusy(false);
     }
   };
 
@@ -176,11 +227,8 @@ function Checkout() {
           )}
 
           <div className="rounded-md border border-ink/10 bg-white p-5 shadow-soft">
-            <h2 className="font-display text-2xl font-bold text-ink">Payment Method</h2>
-            <label className="mt-4 flex items-center gap-3 rounded-md border border-ink/10 px-4 py-3 text-sm font-semibold">
-              <input type="radio" name="paymentMethod" value="COD" checked={formData.paymentMethod === "COD"} onChange={(event) => setFormData((current) => ({ ...current, paymentMethod: event.target.value }))} className="h-4 w-4 accent-bronze" />
-              Cash on Delivery
-            </label>
+            <h2 className="font-display text-2xl font-bold text-ink">Secure Online Payment</h2>
+            <p className="mt-3 text-sm text-ink/60">Pay with Razorpay after confirming your delivery and billing addresses.</p>
           </div>
         </div>
 
@@ -194,25 +242,42 @@ function Checkout() {
             <>
               <div className="mt-5 space-y-4">
                 {items.map((item) => (
-                  <div key={item.product._id} className="flex gap-3">
+                  <div key={`${item.product._id}-${item.variantId || ""}`} className="flex gap-3">
                     <div className="h-16 w-16 overflow-hidden rounded-md bg-champagne">
                       <img src={item.product.images?.[0]} alt={item.product.name} className="h-full w-full object-cover" />
                     </div>
                     <div className="flex-1">
                       <p className="text-sm font-semibold text-ink">{item.product.name}</p>
+                      {getVariantLabel(item.variant) && <p className="text-xs text-ink/50">{getVariantLabel(item.variant)}</p>}
                       <p className="text-xs text-ink/50">Qty {item.quantity}</p>
                     </div>
-                    <p className="text-sm font-bold text-bronze">{formatPrice(item.product.price * item.quantity)}</p>
+                    <p className="text-sm font-bold text-bronze">{formatPrice(getItemPrice(item) * item.quantity)}</p>
                   </div>
                 ))}
               </div>
               <div className="mt-5 space-y-3 border-t border-ink/10 pt-4 text-sm">
-                <div className="flex justify-between"><span className="text-ink/60">Items total</span><span className="font-semibold">{formatPrice(totals.itemsTotal)}</span></div>
-                <div className="flex justify-between"><span className="text-ink/60">Shipping</span><span className="font-semibold">{totals.shippingFee === 0 ? "Free" : formatPrice(totals.shippingFee)}</span></div>
-                <div className="flex justify-between border-t border-ink/10 pt-3 text-base"><span className="font-bold">Grand total</span><span className="font-bold text-bronze">{formatPrice(totals.grandTotal)}</span></div>
+                <div className="flex justify-between text-base"><span className="font-bold">Item total</span><span className="font-bold text-bronze">{formatPrice(totals.itemsTotal)}</span></div>
               </div>
-              <Button type="submit" isLoading={isPlacing} className="mt-6 w-full">
-                Place Order
+              {pendingVerification && (
+                <button
+                  type="button"
+                  disabled={isPlacing || onlineBusy}
+                  onClick={async () => {
+                    try {
+                      await dispatch(confirmOnlineOrder(pendingVerification)).unwrap();
+                      setPendingVerification(null);
+                      dispatch(fetchCart());
+                    } catch {
+                      // Redux displays the verification error.
+                    }
+                  }}
+                  className="mt-5 w-full rounded-md border border-bronze px-5 py-3 text-sm font-semibold text-bronze disabled:opacity-50"
+                >
+                  Retry payment verification
+                </button>
+              )}
+              <Button type="submit" isLoading={isPlacing || onlineBusy} disabled={Boolean(pendingVerification)} className="mt-6 w-full">
+                Proceed to Payment
               </Button>
             </>
           )}

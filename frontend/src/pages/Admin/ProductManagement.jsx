@@ -1,4 +1,4 @@
-import { Edit2, ImagePlus, Plus, Trash2, X } from "lucide-react";
+import { Edit2, ImagePlus, Plus, Search, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import Button from "../../components/common/Button.jsx";
@@ -11,35 +11,30 @@ import {
   fetchProducts,
   updateProduct,
 } from "../../features/products/productSlice.js";
+import { searchProducts } from "../../utils/productSearch.js";
 
 const emptyForm = {
   name: "",
-  slug: "",
-  sku: "",
   category: "Rings",
-  collection: "",
   description: "",
-  shortDescription: "",
   price: "",
   compareAtPrice: "",
   stock: "",
-  metal: "Gold",
-  metalPurity: "",
-  gemstone: "",
-  weightInGrams: "",
-  size: "",
-  color: "",
-  craftsmanship: "",
-  careInstructions: "",
-  tags: "",
+  variants: [],
+  variantColor: "",
+  variantSize: "",
+  variantPrice: "",
+  variantStock: "",
   images: [],
   imageInput: "",
+  video: "",
+  videoInput: "",
+  youtubeUrl: "",
   isFeatured: false,
   isActive: true,
 };
 
 const categories = ["Rings", "Necklaces", "Earrings", "Bracelets", "Bangles", "Pendants", "Anklets"];
-const metals = ["Gold", "Rose Gold", "White Gold", "Silver", "Platinum", "Diamond"];
 
 const formatCurrency = (value) =>
   new Intl.NumberFormat("en-IN", {
@@ -54,6 +49,8 @@ function ProductManagement() {
   const [formData, setFormData] = useState(emptyForm);
   const [editingProductId, setEditingProductId] = useState(null);
   const [localError, setLocalError] = useState("");
+  const [catalogueSearch, setCatalogueSearch] = useState("");
+  const visibleProducts = useMemo(() => searchProducts(products, catalogueSearch), [products, catalogueSearch]);
 
   const activeProducts = useMemo(() => products.filter((product) => product.isActive).length, [products]);
   const featuredProducts = useMemo(() => products.filter((product) => product.isFeatured).length, [products]);
@@ -79,6 +76,39 @@ function ProductManagement() {
   };
 
   const handleImageUpload = (event) => {
+    const files = Array.from(event.target.files || []);
+
+    if (files.length === 0) return;
+
+    const availableSlots = 5 - formData.images.length;
+
+    if (availableSlots <= 0) {
+      setLocalError("You can upload a maximum of 5 images.");
+      event.target.value = "";
+      return;
+    }
+
+    files.slice(0, availableSlots).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setFormData((current) => ({
+          ...current,
+          images: current.images.length < 5 ? [...current.images, reader.result] : current.images,
+        }));
+      };
+      reader.readAsDataURL(file);
+    });
+
+    if (files.length > availableSlots) {
+      setLocalError("Only 5 images are allowed. Extra images were skipped.");
+    } else {
+      setLocalError("");
+    }
+
+    event.target.value = "";
+  };
+
+  const handleVideoUpload = (event) => {
     const file = event.target.files?.[0];
 
     if (!file) return;
@@ -87,20 +117,38 @@ function ProductManagement() {
     reader.onload = () => {
       setFormData((current) => ({
         ...current,
-        images: [...current.images, reader.result],
+        video: reader.result,
       }));
     };
     reader.readAsDataURL(file);
+    event.target.value = "";
   };
 
   const addImageUrl = () => {
     if (!formData.imageInput.trim()) return;
+
+    if (formData.images.length >= 5) {
+      setLocalError("You can upload a maximum of 5 images.");
+      return;
+    }
 
     setFormData((current) => ({
       ...current,
       images: [...current.images, current.imageInput.trim()],
       imageInput: "",
     }));
+    setLocalError("");
+  };
+
+  const addVideoUrl = () => {
+    if (!formData.videoInput.trim()) return;
+
+    setFormData((current) => ({
+      ...current,
+      video: current.videoInput.trim(),
+      videoInput: "",
+    }));
+    setLocalError("");
   };
 
   const removeImage = (index) => {
@@ -110,19 +158,79 @@ function ProductManagement() {
     }));
   };
 
+  const addVariant = () => {
+    if (!formData.variantColor.trim() && !formData.variantSize.trim()) {
+      setLocalError("Add a color or size for the option.");
+      return;
+    }
+
+    if (formData.variantPrice === "" || !Number.isFinite(Number(formData.variantPrice)) || Number(formData.variantPrice) < 0 ||
+      formData.variantStock === "" || !Number.isInteger(Number(formData.variantStock)) || Number(formData.variantStock) < 0) {
+      setLocalError("Option price and stock are required and must be valid.");
+      return;
+    }
+
+    setFormData((current) => ({
+      ...current,
+      variants: [
+        ...current.variants,
+        {
+          color: current.variantColor.trim(),
+          size: current.variantSize.trim(),
+          price: Number(current.variantPrice),
+          stock: Number(current.variantStock) || 0,
+        },
+      ],
+      variantColor: "",
+      variantSize: "",
+      variantPrice: "",
+      variantStock: "",
+    }));
+    setLocalError("");
+  };
+
+  const removeVariant = (index) => {
+    setFormData((current) => ({
+      ...current,
+      variants: current.variants.filter((_, variantIndex) => variantIndex !== index),
+    }));
+  };
+
+  const updateVariant = (index, field, value) => {
+    setFormData((current) => ({
+      ...current,
+      variants: current.variants.map((variant, variantIndex) =>
+        variantIndex === index
+          ? {
+              ...variant,
+              [field]: field === "price" || field === "stock" ? Number(value) || 0 : value,
+            }
+          : variant
+      ),
+    }));
+  };
+
   const validate = () => {
-    if (!formData.name.trim() || !formData.sku.trim() || !formData.description.trim()) {
-      setLocalError("Name, SKU, and description are required.");
+    if (!formData.name.trim() || !formData.description.trim()) {
+      setLocalError("Name and description are required.");
       return false;
     }
 
-    if (!formData.price || Number(formData.price) < 0 || !formData.stock || Number(formData.stock) < 0) {
-      setLocalError("Price and stock are required and must be positive.");
+    if (formData.variants.length) {
+      if (formData.variants.some((option) => (!option.color.trim() && !option.size.trim()) ||
+        option.price === "" || !Number.isFinite(Number(option.price)) || Number(option.price) < 0 ||
+        option.stock === "" || !Number.isInteger(Number(option.stock)) || Number(option.stock) < 0)) {
+        setLocalError("Every option needs a color or size, a price, and a valid stock count.");
+        return false;
+      }
+    } else if (formData.price === "" || !Number.isFinite(Number(formData.price)) || Number(formData.price) < 0 ||
+      formData.stock === "" || !Number.isInteger(Number(formData.stock)) || Number(formData.stock) < 0) {
+      setLocalError("Price and stock are required when there are no options.");
       return false;
     }
 
-    if (!formData.metal.trim() || !formData.category.trim()) {
-      setLocalError("Category and metal are required.");
+    if (!formData.category.trim()) {
+      setLocalError("Category is required.");
       return false;
     }
 
@@ -132,25 +240,15 @@ function ProductManagement() {
 
   const buildPayload = () => ({
     name: formData.name,
-    slug: formData.slug,
-    sku: formData.sku,
     category: formData.category,
-    collection: formData.collection,
     description: formData.description,
-    shortDescription: formData.shortDescription,
-    price: Number(formData.price),
-    compareAtPrice: Number(formData.compareAtPrice) || 0,
-    stock: Number(formData.stock),
-    metal: formData.metal,
-    metalPurity: formData.metalPurity,
-    gemstone: formData.gemstone,
-    weightInGrams: Number(formData.weightInGrams) || 0,
-    size: formData.size,
-    color: formData.color,
-    craftsmanship: formData.craftsmanship,
-    careInstructions: formData.careInstructions,
-    tags: formData.tags,
+    price: formData.variants.length ? Math.min(...formData.variants.map((option) => Number(option.price))) : Number(formData.price),
+    compareAtPrice: formData.variants.length ? 0 : Number(formData.compareAtPrice) || 0,
+    stock: formData.variants.length ? formData.variants.reduce((total, option) => total + Number(option.stock), 0) : Number(formData.stock),
+    variants: formData.variants,
     images: formData.images,
+    video: formData.video,
+    youtubeUrl: formData.youtubeUrl,
     isFeatured: formData.isFeatured,
     isActive: formData.isActive,
   });
@@ -181,25 +279,15 @@ function ProductManagement() {
     setFormData({
       ...emptyForm,
       name: product.name || "",
-      slug: product.slug || "",
-      sku: product.sku || "",
       category: product.category || "Rings",
-      collection: product.collection || "",
       description: product.description || "",
-      shortDescription: product.shortDescription || "",
       price: product.price || "",
       compareAtPrice: product.compareAtPrice || "",
       stock: product.stock || "",
-      metal: product.metal || "Gold",
-      metalPurity: product.metalPurity || "",
-      gemstone: product.gemstone || "",
-      weightInGrams: product.weightInGrams || "",
-      size: product.size || "",
-      color: product.color || "",
-      craftsmanship: product.craftsmanship || "",
-      careInstructions: product.careInstructions || "",
-      tags: product.tags?.join(", ") || "",
+      variants: product.variants || [],
       images: product.images || [],
+      video: product.video || "",
+      youtubeUrl: product.youtubeUrl || "",
       isFeatured: Boolean(product.isFeatured),
       isActive: Boolean(product.isActive),
     });
@@ -254,30 +342,33 @@ function ProductManagement() {
 
           <div className="space-y-4">
             <Input label="Product Name" name="name" value={formData.name} onChange={handleChange} placeholder="Diamond Solitaire Ring" />
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Input label="SKU" name="sku" value={formData.sku} onChange={handleChange} placeholder="HP-RNG-001" />
-              <Input label="Slug" name="slug" value={formData.slug} onChange={handleChange} placeholder="auto if empty" />
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block">
-                <span className="mb-2 block text-sm font-medium text-ink">Category</span>
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium text-ink">Category</span>
+              <select
+                value={categorySuggestions.includes(formData.category) ? formData.category : "__new__"}
+                onChange={(event) => {
+                  setFormData((current) => ({
+                    ...current,
+                    category: event.target.value === "__new__" ? "" : event.target.value,
+                  }));
+                }}
+                className="w-full rounded-md border border-ink/15 bg-white px-4 py-3 text-sm outline-none focus:border-bronze"
+              >
+                {categorySuggestions.map((category) => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+                <option value="__new__">Create new category</option>
+              </select>
+              {!categorySuggestions.includes(formData.category) && (
                 <input
-                  list="category-options"
                   name="category"
                   value={formData.category}
                   onChange={handleChange}
-                  className="w-full rounded-md border border-ink/15 bg-white px-4 py-3 text-sm outline-none focus:border-bronze"
-                  placeholder="Choose or type category"
+                  className="mt-3 w-full rounded-md border border-ink/15 bg-white px-4 py-3 text-sm outline-none focus:border-bronze"
+                  placeholder="New category name"
                 />
-                <datalist id="category-options">
-                  {categorySuggestions.map((category) => (
-                    <option key={category} value={category} />
-                  ))}
-                </datalist>
-              </label>
-              <Input label="Collection" name="collection" value={formData.collection} onChange={handleChange} placeholder="Wedding Edit" />
-            </div>
-            <Input label="Short Description" name="shortDescription" value={formData.shortDescription} onChange={handleChange} placeholder="18K gold with brilliant diamonds" />
+              )}
+            </label>
             <label className="block">
               <span className="mb-2 block text-sm font-medium text-ink">Description</span>
               <textarea
@@ -289,38 +380,74 @@ function ProductManagement() {
                 placeholder="Detailed product story, finish, setting, and usage."
               />
             </label>
-            <div className="grid gap-4 sm:grid-cols-3">
+            {formData.variants.length === 0 ? <div className="grid gap-4 sm:grid-cols-3">
               <Input label="Price" name="price" type="number" min="0" value={formData.price} onChange={handleChange} placeholder="42999" />
               <Input label="Compare Price" name="compareAtPrice" type="number" min="0" value={formData.compareAtPrice} onChange={handleChange} placeholder="48999" />
               <Input label="Stock" name="stock" type="number" min="0" value={formData.stock} onChange={handleChange} placeholder="12" />
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block">
-                <span className="mb-2 block text-sm font-medium text-ink">Metal</span>
-                <select name="metal" value={formData.metal} onChange={handleChange} className="w-full rounded-md border border-ink/15 bg-white px-4 py-3 text-sm outline-none focus:border-bronze">
-                  {metals.map((metal) => (
-                    <option key={metal}>{metal}</option>
+            </div> : <p className="rounded-md bg-champagne px-4 py-3 text-sm text-ink/70">Price and stock come from the options below. No separate base or compare price is needed.</p>}
+
+            <div className="rounded-md border border-ink/10 bg-pearl p-4">
+              <p className="mb-3 text-sm font-semibold text-ink">Color / Size Pricing</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Input label="Color" name="variantColor" value={formData.variantColor} onChange={handleChange} placeholder="Gold" />
+                <Input label="Size" name="variantSize" value={formData.variantSize} onChange={handleChange} placeholder="12 / Adjustable" />
+                <Input label="Option Price" name="variantPrice" type="number" min="0" value={formData.variantPrice} onChange={handleChange} placeholder="44999" />
+                <Input label="Option Stock" name="variantStock" type="number" min="0" value={formData.variantStock} onChange={handleChange} placeholder="5" />
+              </div>
+              <Button type="button" variant="secondary" onClick={addVariant} className="mt-3">
+                Add Option
+              </Button>
+              {formData.variants.length > 0 && (
+                <div className="mt-4 space-y-3">
+                  {formData.variants.map((variant, index) => (
+                    <div key={variant._id || `${variant.color}-${variant.size}-${index}`} className="rounded-md bg-white p-3 text-sm">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <Input
+                          label="Color"
+                          value={variant.color || ""}
+                          onChange={(event) => updateVariant(index, "color", event.target.value)}
+                          placeholder="Gold"
+                        />
+                        <Input
+                          label="Size"
+                          value={variant.size || ""}
+                          onChange={(event) => updateVariant(index, "size", event.target.value)}
+                          placeholder="12 / Adjustable"
+                        />
+                        <Input
+                          label="Option Price"
+                          type="number"
+                          min="0"
+                          value={variant.price ?? ""}
+                          onChange={(event) => updateVariant(index, "price", event.target.value)}
+                          placeholder="44999"
+                        />
+                        <Input
+                          label="Option Stock"
+                          type="number"
+                          min="0"
+                          value={variant.stock ?? ""}
+                          onChange={(event) => updateVariant(index, "stock", event.target.value)}
+                          placeholder="5"
+                        />
+                      </div>
+                      <div className="mt-3 flex items-center justify-between gap-3">
+                        <span className="font-medium text-ink/60">Option {index + 1} - {formatCurrency(variant.price)}</span>
+                        <button type="button" onClick={() => removeVariant(index)} className="inline-flex items-center gap-1 text-red-600" aria-label="Remove option">
+                          <X size={16} />
+                          Remove
+                        </button>
+                      </div>
+                    </div>
                   ))}
-                </select>
-              </label>
-              <Input label="Metal Purity" name="metalPurity" value={formData.metalPurity} onChange={handleChange} placeholder="18K / 22K / 925" />
+                </div>
+              )}
             </div>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <Input label="Gemstone" name="gemstone" value={formData.gemstone} onChange={handleChange} placeholder="Diamond" />
-              <Input label="Weight (grams)" name="weightInGrams" type="number" min="0" step="0.01" value={formData.weightInGrams} onChange={handleChange} placeholder="8.5" />
-              <Input label="Size" name="size" value={formData.size} onChange={handleChange} placeholder="Adjustable / 12" />
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Input label="Color" name="color" value={formData.color} onChange={handleChange} placeholder="Champagne Gold" />
-              <Input label="Craftsmanship" name="craftsmanship" value={formData.craftsmanship} onChange={handleChange} placeholder="Hand finished" />
-            </div>
-            <Input label="Care Instructions" name="careInstructions" value={formData.careInstructions} onChange={handleChange} placeholder="Store separately and avoid perfume contact" />
-            <Input label="Tags" name="tags" value={formData.tags} onChange={handleChange} placeholder="bridal, premium, gifting" />
 
             <div className="rounded-md border border-ink/10 bg-pearl p-4">
               <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
                 <ImagePlus size={18} />
-                Product Images
+                Product Images ({formData.images.length}/5)
               </div>
               <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
                 <Input name="imageInput" value={formData.imageInput} onChange={handleChange} placeholder="Image URL or base64 string" />
@@ -331,7 +458,7 @@ function ProductManagement() {
               <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-md border border-ink/10 bg-white px-4 py-2 text-sm font-semibold text-ink">
                 <Plus size={17} />
                 Upload Image
-                <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageUpload} />
               </label>
               {formData.images.length > 0 && (
                 <div className="mt-4 grid grid-cols-4 gap-3">
@@ -346,6 +473,35 @@ function ProductManagement() {
                 </div>
               )}
             </div>
+
+            <div className="rounded-md border border-ink/10 bg-pearl p-4">
+              <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
+                <ImagePlus size={18} />
+                Product Video
+              </div>
+              <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+                <Input name="videoInput" value={formData.videoInput} onChange={handleChange} placeholder="Video URL or base64 string" />
+                <Button type="button" variant="secondary" onClick={addVideoUrl}>
+                  Add Video
+                </Button>
+              </div>
+              <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-md border border-ink/10 bg-white px-4 py-2 text-sm font-semibold text-ink">
+                <Plus size={17} />
+                Upload Video
+                <input type="file" accept="video/*" className="hidden" onChange={handleVideoUpload} />
+              </label>
+              {formData.video && (
+                <div className="mt-4 rounded-md bg-white p-3">
+                  <video src={formData.video} controls className="max-h-52 w-full rounded-md bg-ink" />
+                  <button type="button" onClick={() => setFormData((current) => ({ ...current, video: "" }))} className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-red-600">
+                    <X size={16} />
+                    Remove video
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <Input label="YouTube Link" name="youtubeUrl" value={formData.youtubeUrl} onChange={handleChange} placeholder="https://www.youtube.com/watch?v=..." />
 
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="flex items-center gap-3 rounded-md border border-ink/10 px-4 py-3 text-sm font-medium">
@@ -367,6 +523,11 @@ function ProductManagement() {
           <div className="border-b border-ink/10 px-5 py-4">
             <h2 className="font-display text-2xl font-bold">Products</h2>
             <p className="mt-1 text-sm text-ink/55">Manage active, draft, and featured jewellery listings.</p>
+            <label className="relative mt-4 block">
+              <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink/40" />
+              <input type="search" value={catalogueSearch} onChange={(event) => setCatalogueSearch(event.target.value)} placeholder="Search by name, SKU, category or option" aria-label="Search admin products" className="w-full rounded-md border border-ink/15 bg-pearl py-2.5 pl-10 pr-4 text-sm outline-none focus:border-bronze" />
+            </label>
+            <p className="mt-2 text-xs text-ink/50">Showing {visibleProducts.length} of {products.length} products</p>
           </div>
 
           {isLoading ? (
@@ -387,7 +548,7 @@ function ProductManagement() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-ink/10">
-                  {products.map((product) => (
+                  {visibleProducts.map((product) => (
                     <tr key={product._id}>
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
@@ -396,13 +557,13 @@ function ProductManagement() {
                           </div>
                           <div>
                             <p className="font-semibold text-ink">{product.name}</p>
-                            <p className="text-xs text-ink/50">{product.sku}</p>
+                            {product.variants?.length > 0 && <p className="text-xs text-ink/50">{product.variants.length} option{product.variants.length === 1 ? "" : "s"}</p>}
                           </div>
                         </div>
                       </td>
                       <td className="px-5 py-4 text-ink/65">{product.category}</td>
-                      <td className="px-5 py-4 font-semibold">{formatCurrency(product.price)}</td>
-                      <td className="px-5 py-4">{product.stock}</td>
+                      <td className="px-5 py-4 font-semibold">{formatCurrency(product.variants?.length ? Math.min(...product.variants.map((option) => option.price)) : product.price)}</td>
+                      <td className="px-5 py-4">{product.variants?.length ? product.variants.reduce((total, option) => total + option.stock, 0) : product.stock}</td>
                       <td className="px-5 py-4">
                         <span className={`rounded-full px-3 py-1 text-xs font-semibold ${product.isActive ? "bg-green-50 text-green-700" : "bg-ink/5 text-ink/50"}`}>
                           {product.isActive ? "Active" : "Draft"}
@@ -420,10 +581,10 @@ function ProductManagement() {
                       </td>
                     </tr>
                   ))}
-                  {products.length === 0 && (
+                  {visibleProducts.length === 0 && (
                     <tr>
                       <td colSpan="6" className="px-5 py-12 text-center text-ink/55">
-                        No products yet. Add your first jewellery listing.
+                        {products.length ? "No products match your search." : "No products yet. Add your first jewellery listing."}
                       </td>
                     </tr>
                   )}

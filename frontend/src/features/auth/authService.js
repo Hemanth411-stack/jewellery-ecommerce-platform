@@ -15,6 +15,11 @@ const getCurrentUser = async () => {
   return response.data;
 };
 
+const updateCurrentUser = async (userData) => {
+  const response = await api.put("/auth/me", userData);
+  return response.data;
+};
+
 const logout = () => {
   localStorage.removeItem("token");
   localStorage.removeItem("user");
@@ -24,5 +29,6 @@ export default {
   register,
   login,
   getCurrentUser,
+  updateCurrentUser,
   logout,
 };

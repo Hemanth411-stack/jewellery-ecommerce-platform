@@ -22,7 +22,7 @@ const normalizeTags = (tags) => {
 
 const normalizeImages = (images) => {
   if (Array.isArray(images)) {
-    return images.map((image) => String(image).trim()).filter(Boolean);
+    return images.map((image) => String(image).trim()).filter(Boolean).slice(0, 5);
   }
 
   if (typeof images === "string" && images.trim()) {
@@ -32,13 +32,46 @@ const normalizeImages = (images) => {
   return [];
 };
 
-const prepareProductPayload = (payload) => ({
-  ...payload,
-  slug: payload.slug ? slugify(payload.slug) : slugify(payload.name),
-  sku: payload.sku?.trim().toUpperCase(),
-  tags: normalizeTags(payload.tags),
-  images: normalizeImages(payload.images),
-});
+const normalizeVariants = (variants) => {
+  if (!Array.isArray(variants)) return [];
+
+  return variants
+    .map((variant) => ({
+      color: String(variant.color || "").trim(),
+      size: String(variant.size || "").trim(),
+      price: Number(variant.price),
+      stock: Number(variant.stock) || 0,
+    }))
+    .filter((variant) => (variant.color || variant.size) && Number.isFinite(variant.price) && variant.price >= 0);
+};
+
+const generateSku = (payload) => {
+  const categoryPrefix = String(payload.category || "product")
+    .replace(/[^a-z0-9]/gi, "")
+    .slice(0, 3)
+    .toUpperCase()
+    .padEnd(3, "P");
+  const uniqueSuffix = Date.now().toString(36).toUpperCase();
+
+  return `HP-${categoryPrefix}-${uniqueSuffix}`;
+};
+
+const prepareProductPayload = (payload, existingProduct = null) => {
+  const variants = normalizeVariants(payload.variants);
+  return {
+    ...payload,
+    slug: payload.slug ? slugify(payload.slug) : existingProduct?.slug || slugify(payload.name),
+    sku: payload.sku?.trim().toUpperCase() || existingProduct?.sku || generateSku(payload),
+    tags: normalizeTags(payload.tags),
+    images: normalizeImages(payload.images),
+    video: String(payload.video || "").trim(),
+    youtubeUrl: String(payload.youtubeUrl || "").trim(),
+    variants,
+    price: variants.length ? Math.min(...variants.map((option) => option.price)) : Number(payload.price),
+    stock: variants.length ? variants.reduce((total, option) => total + option.stock, 0) : Number(payload.stock),
+    compareAtPrice: variants.length ? 0 : Number(payload.compareAtPrice) || 0,
+  };
+};
 
 export const createProduct = async (payload) => {
   const productPayload = prepareProductPayload(payload);
@@ -55,7 +88,13 @@ export const createProduct = async (payload) => {
 };
 
 export const updateProductById = async (productId, payload) => {
-  const productPayload = prepareProductPayload(payload);
+  const existingProduct = await Product.findById(productId);
+
+  if (!existingProduct) {
+    throw new AppError("Product not found", 404);
+  }
+
+  const productPayload = prepareProductPayload(payload, existingProduct);
 
   const duplicateProduct = await Product.findOne({
     _id: { $ne: productId },
@@ -70,10 +109,6 @@ export const updateProductById = async (productId, payload) => {
     new: true,
     runValidators: true,
   });
-
-  if (!product) {
-    throw new AppError("Product not found", 404);
-  }
 
   return product;
 };
@@ -100,15 +135,15 @@ export const getProductById = async (productId) => {
 
 export const getRelatedProducts = async (productId, limit = 4) => {
   const product = await getProductById(productId);
+  const relatedConditions = [
+    { category: product.category },
+    product.gemstone ? { gemstone: product.gemstone } : null,
+  ].filter(Boolean);
 
   return Product.find({
     _id: { $ne: productId },
     isActive: true,
-    $or: [
-      { category: product.category },
-      { metal: product.metal },
-      { gemstone: product.gemstone },
-    ],
+    $or: relatedConditions,
   })
     .limit(limit)
     .sort({ isFeatured: -1, createdAt: -1 });

@@ -8,6 +8,7 @@ import Checkout from "../pages/Checkout/Checkout.jsx";
 import Home from "../pages/Home/Home.jsx";
 import Login from "../pages/Login/Login.jsx";
 import Orders from "../pages/Orders/Orders.jsx";
+import Profile from "../pages/Profile/Profile.jsx";
 import ProductDetails from "../pages/ProductDetails/ProductDetails.jsx";
 import Signup from "../pages/Signup/Signup.jsx";
 import Wishlist from "../pages/Wishlist/Wishlist.jsx";
@@ -22,6 +23,7 @@ function AppRoutes() {
         <Route path="/cart" element={<Cart />} />
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/orders" element={<Orders />} />
+        <Route path="/profile" element={<Profile />} />
         <Route path="/wishlist" element={<Wishlist />} />
         <Route path="/products/:id" element={<ProductDetails />} />
       </Route>

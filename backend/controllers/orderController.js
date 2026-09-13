@@ -1,8 +1,10 @@
 import {
-  createOrderFromCart,
+  createOnlineOrderFromCart,
   getAllOrders,
   getOrdersForUser,
+  updateOrderTrackingReference,
   updateOrderStatus,
+  verifyOnlinePayment,
 } from "../services/orderService.js";
 import AppError from "../utils/appError.js";
 
@@ -20,25 +22,30 @@ const validateAddress = (address, label) => {
   }
 };
 
-export const checkout = async (req, res, next) => {
+export const startOnlineCheckout = async (req, res, next) => {
   try {
-    const { billingAddress, deliveryAddress, paymentMethod = "COD" } = req.body;
-
+    const { billingAddress, deliveryAddress } = req.body;
     validateAddress(billingAddress, "Billing");
     validateAddress(deliveryAddress, "Delivery");
+    const payment = await createOnlineOrderFromCart({
+      userId: req.user._id, billingAddress, deliveryAddress,
+    });
+    res.status(201).json({ success: true, payment });
+  } catch (error) {
+    next(error);
+  }
+};
 
-    const order = await createOrderFromCart({
+export const confirmOnlinePayment = async (req, res, next) => {
+  try {
+    const order = await verifyOnlinePayment({
       userId: req.user._id,
-      billingAddress,
-      deliveryAddress,
-      paymentMethod,
+      orderId: req.params.orderId,
+      razorpayOrderId: req.body.razorpay_order_id,
+      razorpayPaymentId: req.body.razorpay_payment_id,
+      razorpaySignature: req.body.razorpay_signature,
     });
-
-    res.status(201).json({
-      success: true,
-      message: "Order placed successfully",
-      order,
-    });
+    res.json({ success: true, message: "Payment verified and order placed successfully", order });
   } catch (error) {
     next(error);
   }
@@ -84,6 +91,23 @@ export const changeOrderStatus = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Order status updated successfully",
+      order,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const changeOrderTrackingReference = async (req, res, next) => {
+  try {
+    const order = await updateOrderTrackingReference({
+      orderId: req.params.orderId,
+      trackingReference: req.body.trackingReference,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "DTDC reference number saved successfully",
       order,
     });
   } catch (error) {

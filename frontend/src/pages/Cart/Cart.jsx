@@ -17,13 +17,14 @@ const formatPrice = (price) =>
     maximumFractionDigits: 0,
   }).format(price || 0);
 
+const getItemPrice = (item) => item.variant?.price ?? item.product.price;
+const getVariantLabel = (variant) => [variant?.color, variant?.size].filter(Boolean).join(" / ");
+
 function Cart() {
   const dispatch = useDispatch();
   const { isAuthenticated } = useSelector((state) => state.auth);
   const { items, isLoading, error } = useSelector((state) => state.cart);
-  const itemsTotal = items.reduce((total, item) => total + item.product.price * item.quantity, 0);
-  const shippingFee = itemsTotal >= 999 || itemsTotal === 0 ? 0 : 99;
-  const grandTotal = itemsTotal + shippingFee;
+  const itemsTotal = items.reduce((total, item) => total + getItemPrice(item) * item.quantity, 0);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -57,42 +58,47 @@ function Cart() {
         ) : items.length > 0 ? (
           <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
             <div className="space-y-4">
-              {items.map((item) => (
-                <article key={item.product._id} className="grid gap-4 rounded-md border border-ink/10 bg-white p-4 shadow-soft sm:grid-cols-[112px_1fr_auto]">
-                  <div className="aspect-square overflow-hidden rounded-md bg-champagne">
+              {items.map((item) => {
+                const variantLabel = getVariantLabel(item.variant);
+                const variantId = item.variantId || "";
+                const productPath = `/products/${item.product._id}${variantId ? `?variant=${encodeURIComponent(variantId)}` : ""}`;
+
+                return (
+                <article key={`${item.product._id}-${variantId}`} className="grid gap-4 rounded-md border border-ink/10 bg-white p-4 shadow-soft sm:grid-cols-[112px_1fr_auto]">
+                  <Link to={productPath} className="aspect-square overflow-hidden rounded-md bg-champagne" aria-label={`View ${item.product.name}`}>
                     <img src={item.product.images?.[0]} alt={item.product.name} className="h-full w-full object-cover" />
-                  </div>
+                  </Link>
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-bronze">{item.product.category}</p>
-                    <h2 className="mt-2 text-lg font-bold text-ink">{item.product.name}</h2>
-                    <p className="mt-1 text-sm text-ink/55">{item.product.shortDescription}</p>
-                    <p className="mt-3 font-bold text-bronze">{formatPrice(item.product.price)}</p>
+                    <h2 className="mt-2 text-lg font-bold text-ink"><Link to={productPath} className="hover:text-bronze">{item.product.name}</Link></h2>
+                    {variantLabel && <p className="mt-1 text-sm text-ink/55">{variantLabel}</p>}
+                    <p className="mt-3 font-bold text-bronze">{formatPrice(getItemPrice(item))}</p>
+                    <Link to={productPath} className="mt-2 inline-block text-xs font-semibold text-bronze hover:underline">View product details</Link>
                   </div>
                   <div className="flex items-center justify-between gap-4 sm:flex-col sm:items-end">
                     <div className="inline-flex h-10 items-center rounded-md border border-ink/10 bg-pearl">
-                      <button type="button" onClick={() => dispatch(updateCartItem({ productId: item.product._id, quantity: Math.max(1, item.quantity - 1) }))} className="px-3" aria-label="Decrease quantity">
+                      <button type="button" onClick={() => dispatch(updateCartItem({ productId: item.product._id, variantId, quantity: Math.max(1, item.quantity - 1) }))} className="px-3" aria-label="Decrease quantity">
                         <Minus size={15} />
                       </button>
                       <span className="min-w-9 text-center text-sm font-bold">{item.quantity}</span>
-                      <button type="button" onClick={() => dispatch(updateCartItem({ productId: item.product._id, quantity: item.quantity + 1 }))} className="px-3" aria-label="Increase quantity">
+                      <button type="button" onClick={() => dispatch(updateCartItem({ productId: item.product._id, variantId, quantity: item.quantity + 1 }))} className="px-3" aria-label="Increase quantity">
                         <Plus size={15} />
                       </button>
                     </div>
-                    <button type="button" onClick={() => dispatch(removeFromCart(item.product._id))} className="inline-flex items-center gap-2 text-sm font-semibold text-red-600">
+                    <button type="button" onClick={() => dispatch(removeFromCart({ productId: item.product._id, variantId }))} className="inline-flex items-center gap-2 text-sm font-semibold text-red-600">
                       <Trash2 size={16} />
                       Remove
                     </button>
                   </div>
                 </article>
-              ))}
+                );
+              })}
             </div>
 
             <aside className="h-fit rounded-md border border-ink/10 bg-white p-5 shadow-soft">
               <h2 className="font-display text-2xl font-bold text-ink">Order Summary</h2>
               <div className="mt-5 space-y-3 text-sm">
-                <div className="flex justify-between"><span className="text-ink/60">Items total</span><span className="font-semibold">{formatPrice(itemsTotal)}</span></div>
-                <div className="flex justify-between"><span className="text-ink/60">Shipping</span><span className="font-semibold">{shippingFee === 0 ? "Free" : formatPrice(shippingFee)}</span></div>
-                <div className="border-t border-ink/10 pt-3 flex justify-between text-base"><span className="font-bold">Grand total</span><span className="font-bold text-bronze">{formatPrice(grandTotal)}</span></div>
+                <div className="flex justify-between text-base"><span className="font-bold">Item total</span><span className="font-bold text-bronze">{formatPrice(itemsTotal)}</span></div>
               </div>
               <Button as={Link} to="/checkout" className="mt-6 w-full">
                 Proceed to Checkout

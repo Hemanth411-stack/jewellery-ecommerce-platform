@@ -59,8 +59,8 @@ const productSchema = new mongoose.Schema(
     },
     metal: {
       type: String,
-      required: true,
       trim: true,
+      default: "",
     },
     metalPurity: {
       type: String,
@@ -103,6 +103,27 @@ const productSchema = new mongoose.Schema(
     },
     images: {
       type: [String],
+      default: [],
+    },
+    video: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    youtubeUrl: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    variants: {
+      type: [
+        {
+          color: { type: String, trim: true, default: "" },
+          size: { type: String, trim: true, default: "" },
+          price: { type: Number, required: true, min: 0 },
+          stock: { type: Number, min: 0, default: 0 },
+        },
+      ],
       default: [],
     },
     isFeatured: {

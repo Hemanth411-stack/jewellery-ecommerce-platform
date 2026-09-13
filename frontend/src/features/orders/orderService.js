@@ -1,7 +1,12 @@
 import api from "../../services/api.js";
 
-const checkout = async (checkoutData) => {
-  const response = await api.post("/orders/checkout", checkoutData);
+const startOnlineCheckout = async (checkoutData) => {
+  const response = await api.post("/orders/online-checkout", checkoutData);
+  return response.data;
+};
+
+const verifyOnlinePayment = async (orderId, paymentResponse) => {
+  const response = await api.post(`/orders/${orderId}/verify-payment`, paymentResponse);
   return response.data;
 };
 
@@ -20,9 +25,16 @@ const updateOrderStatus = async (orderId, status) => {
   return response.data;
 };
 
+const updateTrackingReference = async (orderId, trackingReference) => {
+  const response = await api.patch(`/orders/admin/${orderId}/tracking`, { trackingReference });
+  return response.data;
+};
+
 export default {
-  checkout,
+  startOnlineCheckout,
+  verifyOnlinePayment,
   getMyOrders,
   getAdminOrders,
   updateOrderStatus,
+  updateTrackingReference,
 };

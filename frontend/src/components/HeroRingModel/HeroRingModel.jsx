@@ -110,15 +110,15 @@ function HeroRingModel() {
 
       const isMobile = canvasWidth < 640;
       model.position.copy(model.userData.centeredPosition);
-      model.position.x += isMobile ? -0.16 : -0.58;
-      model.position.y += isMobile ? 0.2 : 0.58;
-      model.scale.setScalar((isMobile ? 1.72 : 2.05) / model.userData.maxAxis);
+      model.position.x += isMobile ? -0.05 : -0.58;
+      model.position.y += isMobile ? 0.02 : 0.48;
+      model.scale.setScalar((isMobile ? 0.92 : 1.82) / model.userData.maxAxis);
     };
 
     const resize = () => {
       const { width, height } = container.getBoundingClientRect();
       const canvasWidth = Math.max(width, 320);
-      const canvasHeight = Math.max(height, 360);
+      const canvasHeight = Math.max(height, 150);
       renderer.setSize(canvasWidth, canvasHeight, false);
       camera.aspect = canvasWidth / canvasHeight;
       camera.updateProjectionMatrix();
@@ -235,7 +235,7 @@ function HeroRingModel() {
   }, []);
 
   return (
-    <div className="relative min-h-[430px] overflow-hidden rounded-md bg-[#151515] shadow-soft md:min-h-[520px]">
+    <div className="relative min-h-[150px] overflow-hidden rounded-md bg-[#151515] shadow-soft sm:min-h-[260px] md:min-h-[340px]">
       <div ref={containerRef} className="absolute inset-0" aria-label="Interactive 3D diamond ring model" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.13),rgba(21,21,21,0)_58%)]" />
       {(isLoading || loadError) && (

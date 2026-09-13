@@ -1,4 +1,4 @@
-import { PackageCheck, Star } from "lucide-react";
+import { ExternalLink, PackageCheck, Star, Truck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, Navigate } from "react-router-dom";
@@ -21,11 +21,15 @@ const formatDate = (date) =>
     year: "numeric",
   }).format(new Date(date));
 
+const getVariantLabel = (variant) => [variant?.color, variant?.size].filter(Boolean).join(" / ");
+
 const emptyReview = {
   rating: 5,
   title: "",
   comment: "",
 };
+
+const DTDC_TRACKING_URL = "https://www.dtdc.com/track-your-shipment/";
 
 function Orders() {
   const dispatch = useDispatch();
@@ -114,6 +118,24 @@ function Orders() {
                       {order.status}
                     </span>
                     <span className="text-sm font-bold text-ink">{formatPrice(order.grandTotal)}</span>
+                    {order.trackingReference && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs text-ink/55">
+                          DTDC Ref: <strong className="text-ink">{order.trackingReference}</strong>
+                        </span>
+                        <a
+                          href={DTDC_TRACKING_URL}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-ink px-4 py-2 text-xs font-semibold text-white transition hover:bg-rosewood"
+                          aria-label={`Track order ${order._id.slice(-8).toUpperCase()} on DTDC`}
+                        >
+                          <Truck size={16} />
+                          Track with DTDC
+                          <ExternalLink size={14} />
+                        </a>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -122,6 +144,7 @@ function Orders() {
                     const productId = item.product;
                     const isReviewOpen = activeProductId === productId;
                     const form = getReviewForm(productId);
+                    const variantLabel = getVariantLabel(item.variant);
 
                     return (
                       <div key={`${order._id}-${productId}`} className="grid gap-4 p-5 lg:grid-cols-[1fr_360px] lg:items-start">
@@ -133,7 +156,7 @@ function Orders() {
                             <Link to={`/products/${productId}`} className="font-semibold text-ink hover:text-bronze">
                               {item.name}
                             </Link>
-                            <p className="mt-1 text-xs text-ink/50">SKU {item.sku}</p>
+                            {variantLabel && <p className="mt-1 text-xs text-ink/50">{variantLabel}</p>}
                             <p className="mt-2 text-sm text-ink/60">
                               Qty {item.quantity} x {formatPrice(item.price)}
                             </p>
