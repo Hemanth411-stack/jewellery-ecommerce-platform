@@ -70,6 +70,7 @@ const orderSlice = createSlice({
     clearOrderStatus: (state) => {
       state.error = null;
       state.message = null;
+      state.latestOrder = null;
     },
   },
   extraReducers: (builder) => {
