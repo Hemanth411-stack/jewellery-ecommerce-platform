@@ -36,41 +36,6 @@ const categories = [
   },
 ];
 
-const fallbackProducts = [
-  {
-    name: "Diamond Ring",
-    material: "18K gold with brilliant diamonds",
-    price: "INR 42,999",
-    category: "Rings",
-    isFeatured: true,
-    image: "https://images.unsplash.com/photo-1602751584552-8ba73aad10e1?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    name: "Gold Necklace",
-    material: "Handcrafted 22K gold finish",
-    price: "INR 86,499",
-    category: "Necklaces",
-    isFeatured: true,
-    image: "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    name: "Pearl Earrings",
-    material: "Freshwater pearls and gold accents",
-    price: "INR 14,999",
-    category: "Earrings",
-    isFeatured: false,
-    image: "https://images.unsplash.com/photo-1630019852942-f89202989a59?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    name: "Gold Bracelet",
-    material: "Minimal chain bracelet",
-    price: "INR 28,499",
-    category: "Bracelets",
-    isFeatured: false,
-    image: "https://images.unsplash.com/photo-1611591437281-460bfbe1220a?auto=format&fit=crop&w=900&q=80",
-  },
-];
-
 const sortProducts = (items, sortBy) => {
   const sortedProducts = [...items];
 
@@ -104,7 +69,7 @@ function Home() {
   const [sortBy, setSortBy] = useState("featured");
   const [showFeaturedOnly, setShowFeaturedOnly] = useState(false);
   const [visibleProductCount, setVisibleProductCount] = useState(PRODUCTS_PER_PAGE);
-  const sourceProducts = apiProducts.length > 0 ? apiProducts : fallbackProducts;
+  const sourceProducts = apiProducts;
 
   const categoryOptions = useMemo(() => {
     const productCategories = sourceProducts.map((product) => product.category).filter(Boolean);
