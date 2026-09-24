@@ -17,25 +17,6 @@ import { searchProducts } from "../../utils/productSearch.js";
 const heroImage =
   "https://images.unsplash.com/photo-1602751584552-8ba73aad10e1?auto=format&fit=crop&w=1000&q=85";
 
-const categories = [
-  {
-    name: "Rings",
-    image: "https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    name: "Necklaces",
-    image: "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    name: "Earrings",
-    image: "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    name: "Bracelets",
-    image: "https://images.unsplash.com/photo-1611591437281-460bfbe1220a?auto=format&fit=crop&w=900&q=80",
-  },
-];
-
 const sortProducts = (items, sortBy) => {
   const sortedProducts = [...items];
 
@@ -73,7 +54,7 @@ function Home() {
 
   const categoryOptions = useMemo(() => {
     const productCategories = sourceProducts.map((product) => product.category).filter(Boolean);
-    return ["All", ...new Set([...categories.map((category) => category.name), ...productCategories])];
+    return ["All", ...new Set(productCategories)];
   }, [sourceProducts]);
 
   const filteredProducts = useMemo(() => {
@@ -162,47 +143,35 @@ function Home() {
         </div>
       </section>
 
-      <section id="about" className="px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
-        <SectionTitle
-          eyebrow="Categories"
-          title="Explore by Style"
-          description="Choose a category to jump into the live catalogue."
-        />
-        <div className="mx-auto mb-6 flex max-w-7xl gap-4 overflow-x-auto pb-2 sm:mb-10">
-          {categoryOptions.filter((categoryName) => categoryName !== "All").map((categoryName) => {
-            const matchingProduct = sourceProducts.find((product) => product.category === categoryName);
-            const image = matchingProduct?.images?.[0] || categories.find((category) => category.name === categoryName)?.image;
+      {sourceProducts.length > 0 && (
+        <section id="about" className="px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
+          <SectionTitle
+            eyebrow="Categories"
+            title="Explore by Style"
+            description="Choose a category to jump into the live catalogue."
+          />
+          <div className="mx-auto flex max-w-7xl gap-4 overflow-x-auto pb-2">
+            {categoryOptions.filter((categoryName) => categoryName !== "All").map((categoryName) => {
+              const matchingProduct = sourceProducts.find((product) => product.category === categoryName);
+              const image = matchingProduct?.images?.[0];
 
-            return (
-              <button
-                type="button"
-                key={categoryName}
-                onClick={() => handleCategoryClick(categoryName)}
-                className="min-w-24 text-center"
-              >
-                <span className="mx-auto block h-20 w-20 overflow-hidden rounded-full border border-ink/10 bg-champagne shadow-sm">
-                  {image && <img src={image} alt={categoryName} className="h-full w-full object-cover" />}
-                </span>
-                <span className="mt-2 block text-sm font-semibold text-ink/70">{categoryName}</span>
-              </button>
-            );
-          })}
-        </div>
-        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
-          {categories.map((category) => (
-            <button
-              type="button"
-              key={category.name}
-              onClick={() => handleCategoryClick(category.name)}
-              className="group relative aspect-[4/5] overflow-hidden rounded-md bg-ink text-left"
-            >
-              <img src={category.image} alt={category.name} className="h-full w-full object-cover opacity-85 transition duration-500 group-hover:scale-105" />
-              <div className="absolute inset-0 bg-gradient-to-t from-ink/70 via-ink/10 to-transparent" />
-              <h3 className="absolute bottom-3 left-3 font-display text-xl font-bold text-white sm:bottom-5 sm:left-5 sm:text-2xl">{category.name}</h3>
-            </button>
-          ))}
-        </div>
-      </section>
+              return (
+                <button
+                  type="button"
+                  key={categoryName}
+                  onClick={() => handleCategoryClick(categoryName)}
+                  className="min-w-24 text-center"
+                >
+                  <span className="mx-auto block h-20 w-20 overflow-hidden rounded-full border border-ink/10 bg-champagne shadow-sm">
+                    {image && <img src={image} alt={categoryName} className="h-full w-full object-cover" />}
+                  </span>
+                  <span className="mt-2 block text-sm font-semibold text-ink/70">{categoryName}</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       <section className="bg-pearl px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
         <SectionTitle
