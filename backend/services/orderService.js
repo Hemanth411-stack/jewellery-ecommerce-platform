@@ -4,10 +4,11 @@ import Order from "../models/Order.js";
 import Review from "../models/Review.js";
 import AppError from "../utils/appError.js";
 import { getCartForUser } from "./cartService.js";
+import { getCartItemPrice } from "../utils/cartPricing.js";
 
 const calculateOrderItems = (cart) =>
   cart.items.map((item) => {
-    const price = item.variant?.price ?? item.product.price;
+    const price = getCartItemPrice(item);
 
     return {
       product: item.product._id,
@@ -49,7 +50,10 @@ const razorpayRequest = async (path, options = {}) => {
   return data;
 };
 
-export const createOnlineOrderFromCart = async ({ userId, billingAddress, deliveryAddress }) => {
+export const createOnlineOrderFromCart = async ({ userId, billingAddress, deliveryAddress, deliveryProvider = "DTDC" }) => {
+  if (!["DTDC", "Postman"].includes(deliveryProvider)) {
+    throw new AppError("Choose DTDC or Postman for delivery", 400);
+  }
   const cart = await getCartForUser(userId);
   if (!cart.items.length) throw new AppError("Cart is empty", 400);
 
@@ -61,7 +65,7 @@ export const createOnlineOrderFromCart = async ({ userId, billingAddress, delive
   if (!Number.isSafeInteger(amount) || amount <= 0) throw new AppError("Invalid order amount", 400);
 
   const order = new Order({
-    user: userId, items, billingAddress, deliveryAddress,
+    user: userId, items, billingAddress, deliveryAddress, deliveryProvider,
     paymentMethod: "ONLINE", paymentStatus: "pending",
     checkoutCartUpdatedAt: cart.updatedAt,
     itemsTotal, shippingFee, grandTotal,
@@ -166,7 +170,7 @@ export const updateOrderTrackingReference = async ({ orderId, trackingReference 
   const normalizedReference = String(trackingReference || "").trim();
 
   if (!normalizedReference) {
-    throw new AppError("DTDC reference number is required", 400);
+    throw new AppError("Tracking reference number is required", 400);
   }
 
   if (normalizedReference.length > 100) {

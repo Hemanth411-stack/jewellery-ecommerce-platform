@@ -18,7 +18,7 @@ export const getReviewsByProduct = async (productId) => {
 };
 
 export const createProductReview = async ({ productId, user, rating, title, comment }) => {
-  const product = await Product.findById(productId);
+  const product = await Product.findById(productId).select("isActive");
 
   if (!product || !product.isActive) {
     throw new AppError("Product not found", 404);
@@ -28,7 +28,7 @@ export const createProductReview = async ({ productId, user, rating, title, comm
     user: user._id,
     status: "delivered",
     "items.product": productId,
-  });
+  }).select("_id");
 
   if (!deliveredOrder) {
     throw new AppError("You can review this product only after the order is delivered", 403);

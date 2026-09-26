@@ -24,11 +24,11 @@ const validateAddress = (address, label) => {
 
 export const startOnlineCheckout = async (req, res, next) => {
   try {
-    const { billingAddress, deliveryAddress } = req.body;
+    const { billingAddress, deliveryAddress, deliveryProvider } = req.body;
     validateAddress(billingAddress, "Billing");
     validateAddress(deliveryAddress, "Delivery");
     const payment = await createOnlineOrderFromCart({
-      userId: req.user._id, billingAddress, deliveryAddress,
+      userId: req.user._id, billingAddress, deliveryAddress, deliveryProvider,
     });
     res.status(201).json({ success: true, payment });
   } catch (error) {
@@ -107,7 +107,7 @@ export const changeOrderTrackingReference = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: "DTDC reference number saved successfully",
+      message: "Tracking reference number saved successfully",
       order,
     });
   } catch (error) {

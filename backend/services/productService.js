@@ -1,5 +1,7 @@
 import Product from "../models/Product.js";
 import AppError from "../utils/appError.js";
+import { storeProductMedia } from "./cloudinaryService.js";
+import { validateProductSize } from "../utils/productSize.js";
 
 const slugify = (value) =>
   value
@@ -84,6 +86,8 @@ export const createProduct = async (payload) => {
     throw new AppError("Product with this SKU or slug already exists", 409);
   }
 
+  Object.assign(productPayload, await storeProductMedia(productPayload));
+  validateProductSize(productPayload);
   return Product.create(productPayload);
 };
 
@@ -95,8 +99,13 @@ export const updateProductById = async (productId, payload) => {
   }
 
   const productPayload = prepareProductPayload(payload, existingProduct);
+  const changesImages = Object.hasOwn(payload, "images");
+  const changesVideo = Object.hasOwn(payload, "video");
+  if (!changesImages) delete productPayload.images;
+  if (!changesVideo) delete productPayload.video;
 
-  const duplicateProduct = await Product.findOne({
+  const identityChanged = productPayload.sku !== existingProduct.sku || productPayload.slug !== existingProduct.slug;
+  const duplicateProduct = identityChanged && await Product.findOne({
     _id: { $ne: productId },
     $or: [{ sku: productPayload.sku }, { slug: productPayload.slug }],
   });
@@ -105,9 +114,20 @@ export const updateProductById = async (productId, payload) => {
     throw new AppError("Product with this SKU or slug already exists", 409);
   }
 
+  if (changesImages || changesVideo) {
+    const media = await storeProductMedia(productPayload);
+    if (changesImages) productPayload.images = media.images;
+    if (changesVideo) productPayload.video = media.video;
+  }
+  validateProductSize(productPayload, existingProduct);
   const product = await Product.findByIdAndUpdate(productId, productPayload, {
     new: true,
     runValidators: true,
+    // The browser already has unchanged media; do not download it again.
+    projection: {
+      ...(!changesImages ? { images: 0 } : {}),
+      ...(!changesVideo ? { video: 0 } : {}),
+    },
   });
 
   return product;
@@ -120,7 +140,10 @@ export const getProducts = async ({ includeInactive = false, featured } = {}) =>
     filter.isFeatured = featured;
   }
 
-  return Product.find(filter).sort({ createdAt: -1 });
+  const query = Product.find(filter).sort({ createdAt: -1 });
+  // The admin editor needs all media; storefront cards only need the cover image.
+  if (!includeInactive) query.select("-video").slice("images", 1);
+  return query;
 };
 
 export const getProductById = async (productId) => {
@@ -145,6 +168,8 @@ export const getRelatedProducts = async (productId, limit = 4) => {
     isActive: true,
     $or: relatedConditions,
   })
+    .select("-video")
+    .slice("images", 1)
     .limit(limit)
     .sort({ isFeatured: -1, createdAt: -1 });
 };

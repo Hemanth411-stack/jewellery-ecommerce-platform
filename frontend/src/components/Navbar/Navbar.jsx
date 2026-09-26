@@ -1,5 +1,5 @@
 import { ChevronDown, Heart, LogOut, Menu, PackageCheck, Search, ShoppingCart, Sparkles, User, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { logoutUser } from "../../features/auth/authSlice.js";
@@ -7,16 +7,6 @@ import { clearCartState, fetchCart } from "../../features/cart/cartSlice.js";
 import { fetchProducts } from "../../features/products/productSlice.js";
 import { clearWishlist } from "../../features/wishlist/wishlistSlice.js";
 import { searchProducts } from "../../utils/productSearch.js";
-
-const categoryLinks = [
-  { label: "Rings", path: "/?category=Rings#shop-products" },
-  { label: "Earrings", path: "/?category=Earrings#shop-products" },
-  { label: "Necklaces", path: "/?category=Necklaces#shop-products" },
-  { label: "Bracelets", path: "/?category=Bracelets#shop-products" },
-  { label: "Bangles", path: "/?category=Bangles#shop-products" },
-  { label: "Pendants", path: "/?category=Pendants#shop-products" },
-  { label: "Anklets", path: "/?category=Anklets#shop-products" },
-];
 
 const pageLinks = [
   { label: "Home", path: "/" },
@@ -36,6 +26,15 @@ function Navbar() {
   const { isAuthenticated, user } = useSelector((state) => state.auth);
   const cartCount = useSelector((state) => state.cart.items.reduce((count, item) => count + item.quantity, 0));
   const { products, isLoading: productsLoading } = useSelector((state) => state.products);
+  const categoryLinks = useMemo(() => [...new Set(
+    products.filter((product) => product.isActive && product.category?.trim()).map((product) => product.category)
+  )].sort((first, second) => first.localeCompare(second)).map((category) => ({
+    label: category,
+    path: `/?category=${encodeURIComponent(category)}#shop-products`,
+  })), [products]);
+  const loadCategories = () => {
+    if (!products.length && !productsLoading) dispatch(fetchProducts());
+  };
   const matches = searchTerm.trim()
     ? searchProducts(products.filter((product) => product.isActive), searchTerm)
     : [];
@@ -113,13 +112,14 @@ function Navbar() {
               {link.label}
             </Link>
           ))}
-          <div className="group relative">
+          <div className="group relative" onMouseEnter={loadCategories} onFocus={loadCategories}>
             <button type="button" className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold text-ink/70 transition hover:bg-white hover:text-ink">
               Category
               <ChevronDown size={16} className="transition group-hover:rotate-180" />
             </button>
-            <div className="invisible absolute left-1/2 top-full z-50 mt-3 min-w-64 -translate-x-1/2 translate-y-2 rounded-md border border-ink/10 bg-white p-2 opacity-0 shadow-soft transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
+            <div className="invisible absolute left-1/2 top-full z-50 mt-3 min-w-64 -translate-x-1/2 translate-y-2 rounded-md border border-ink/10 bg-white p-2 opacity-0 shadow-soft transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100">
               <p className="px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-bronze">Shop by category</p>
+              {categoryLinks.length === 0 && <p className="px-3 py-2 text-sm text-ink/55">{productsLoading ? "Loading categories..." : "No categories available."}</p>}
               {categoryLinks.map((link) => (
                 <Link
                   key={link.label}
@@ -194,7 +194,7 @@ function Navbar() {
           <button
             type="button"
             className="rounded-md p-2 text-ink lg:hidden"
-            onClick={() => { setSearchOpen(false); setIsOpen((value) => !value); }}
+            onClick={() => { setSearchOpen(false); setIsOpen((value) => !value); if (!isOpen) loadCategories(); }}
             aria-label={isOpen ? "Close navigation menu" : "Open navigation menu"}
             aria-expanded={isOpen}
             aria-controls="mobile-navigation"
@@ -289,6 +289,7 @@ function Navbar() {
             <details className="rounded-xl border border-ink/10 bg-white px-4 py-3">
               <summary className="cursor-pointer text-sm font-semibold text-ink">Shop by category</summary>
               <div className="mt-3 grid grid-cols-2 gap-2 border-t border-ink/10 pt-3">
+                {categoryLinks.length === 0 && <p className="col-span-2 text-sm text-ink/55">{productsLoading ? "Loading categories..." : "No categories available."}</p>}
                 {categoryLinks.map((link) => (
                   <Link key={link.label} to={link.path} onClick={() => setIsOpen(false)} className="rounded-md bg-pearl px-3 py-2.5 text-sm font-medium text-ink/70">{link.label}</Link>
                 ))}

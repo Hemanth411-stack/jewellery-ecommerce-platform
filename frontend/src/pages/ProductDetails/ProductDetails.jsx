@@ -1,5 +1,5 @@
-import { ExternalLink, Heart, Maximize2, Minus, PlayCircle, Plus, RotateCcw, ShieldCheck, ShoppingBag, Star, Truck, X, Youtube, ZoomIn, ZoomOut } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight, ExternalLink, Heart, Maximize2, Minus, PlayCircle, Plus, RotateCcw, ShieldCheck, ShoppingBag, Star, Truck, X, Youtube, ZoomIn, ZoomOut } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import Button from "../../components/common/Button.jsx";
@@ -99,7 +99,8 @@ function ProductDetails() {
     error: reviewError,
     message: reviewMessage,
   } = useSelector((state) => state.reviews);
-  const [selectedImage, setSelectedImage] = useState("");
+  const [selectedMediaIndex, setSelectedMediaIndex] = useState(0);
+  const touchStart = useRef(null);
   const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
   const [imageZoom, setImageZoom] = useState(1);
   const [selectedVariantId, setSelectedVariantId] = useState("");
@@ -112,6 +113,15 @@ function ProductDetails() {
     const productImages = selectedProduct?.images?.length ? selectedProduct.images : [];
     return productImages.length > 0 ? productImages : [fallbackImage];
   }, [selectedProduct]);
+
+  const media = useMemo(() => [
+    ...images.map((src) => ({ type: "image", src })),
+    ...(selectedProduct?.video ? [{ type: "video", src: selectedProduct.video }] : []),
+  ], [images, selectedProduct?.video]);
+  const activeMedia = media[selectedMediaIndex] || media[0];
+  const changeSlide = (direction) => {
+    setSelectedMediaIndex((index) => (index + direction + media.length) % media.length);
+  };
 
   const isWishlisted = wishlistProducts.some((product) => product._id === selectedProduct?._id);
   const variants = useMemo(() => selectedProduct?.variants || [], [selectedProduct]);
@@ -139,8 +149,9 @@ function ProductDetails() {
   }, [dispatch, isAuthenticated]);
 
   useEffect(() => {
-    setSelectedImage(images[0]);
-  }, [images]);
+    setSelectedMediaIndex(0);
+    setIsImageViewerOpen(false);
+  }, [media]);
 
   useEffect(() => {
     const lowestPriceOption = variants.reduce((lowest, option) =>
@@ -213,30 +224,73 @@ function ProductDetails() {
             <div className="lg:sticky lg:top-24">
               <div className="relative grid gap-4 md:grid-cols-[96px_1fr]">
                 <div className="order-2 flex gap-3 overflow-x-auto md:order-1 md:flex-col">
-                  {images.map((image, index) => (
+                  {media.map((item, index) => (
                     <button
-                      key={`${image}-${index}`}
+                      key={`${item.src}-${index}`}
                       type="button"
-                      onClick={() => setSelectedImage(image)}
+                      onClick={() => setSelectedMediaIndex(index)}
+                      aria-label={item.type === "video" ? "Show product video" : `Show product image ${index + 1}`}
+                      aria-pressed={selectedMediaIndex === index}
                       className={`h-20 w-20 shrink-0 overflow-hidden rounded-md border bg-champagne ${
-                        selectedImage === image ? "border-bronze" : "border-ink/10"
+                        selectedMediaIndex === index ? "border-bronze" : "border-ink/10"
                       }`}
                     >
-                      <img src={image} alt={`${selectedProduct.name} ${index + 1}`} className="h-full w-full object-cover" />
+                      {item.type === "video" ? (
+                        <span className="flex h-full flex-col items-center justify-center gap-1 text-bronze">
+                          <PlayCircle size={26} />
+                          <span className="text-xs font-semibold">Video</span>
+                        </span>
+                      ) : (
+                        <img src={item.src} alt={`${selectedProduct.name} ${index + 1}`} className="h-full w-full object-cover" />
+                      )}
                     </button>
                   ))}
                 </div>
+                <div
+                  className="relative order-1 min-w-0 md:order-2"
+                  onTouchStart={(event) => {
+                    touchStart.current = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+                  }}
+                  onTouchCancel={() => { touchStart.current = null; }}
+                  onTouchEnd={(event) => {
+                    if (!touchStart.current) return;
+                    const dx = event.changedTouches[0].clientX - touchStart.current.x;
+                    const dy = event.changedTouches[0].clientY - touchStart.current.y;
+                    touchStart.current = null;
+                    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
+                      changeSlide(dx < 0 ? 1 : -1);
+                    }
+                  }}
+                >
+                {activeMedia.type === "video" ? (
+                  <div className="aspect-square overflow-hidden rounded-md bg-ink shadow-soft">
+                    <video key={activeMedia.src} src={activeMedia.src} controls playsInline preload="metadata" aria-label={`${selectedProduct.name} video`} className="h-full w-full object-contain" />
+                  </div>
+                ) : (
                 <button
                   type="button"
                   onClick={openImageViewer}
-                  className="group relative order-1 aspect-square overflow-hidden rounded-md bg-champagne text-left shadow-soft md:order-2"
+                  className="group relative block aspect-square w-full overflow-hidden rounded-md bg-champagne text-left shadow-soft"
                   aria-label={`Open full image for ${selectedProduct.name}`}
                 >
-                  <img src={selectedImage || images[0]} alt={selectedProduct.name} className="h-full w-full object-cover" />
+                  <img src={activeMedia.src} alt={selectedProduct.name} className="h-full w-full object-cover" />
                   <span className="absolute bottom-3 right-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-ink shadow-sm transition group-hover:text-bronze">
                     <Maximize2 size={18} />
                   </span>
                 </button>
+                )}
+                {media.length > 1 && (
+                  <>
+                    <button type="button" onClick={() => changeSlide(-1)} aria-label="Previous product media" className="absolute left-2 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-ink/10 bg-white/95 text-ink shadow-sm transition hover:bg-white hover:text-bronze sm:left-3">
+                      <ChevronLeft size={20} />
+                    </button>
+                    <span aria-live="polite" className="pointer-events-none absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-ink">{selectedMediaIndex + 1} / {media.length}</span>
+                    <button type="button" onClick={() => changeSlide(1)} aria-label="Next product media" className="absolute right-2 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-ink/10 bg-white/95 text-ink shadow-sm transition hover:bg-white hover:text-bronze sm:right-3">
+                      <ChevronRight size={20} />
+                    </button>
+                  </>
+                )}
+                </div>
                 <button
                   type="button"
                   onClick={handleWishlistClick}
@@ -391,15 +445,6 @@ function ProductDetails() {
                 </div>
               </div>
 
-              {selectedProduct.video && (
-                <div className="mt-8 rounded-md border border-ink/10 bg-white p-4">
-                  <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink">
-                    <PlayCircle size={18} className="text-bronze" />
-                    Product Video
-                  </div>
-                  <video src={selectedProduct.video} controls className="max-h-96 w-full rounded-md bg-ink" />
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -524,7 +569,7 @@ function ProductDetails() {
           </div>
           <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto rounded-md bg-black/20" onClick={(event) => event.stopPropagation()}>
             <img
-              src={selectedImage || images[0]}
+              src={activeMedia.src}
               alt={selectedProduct.name}
               className="max-h-full max-w-full object-contain transition-transform duration-200"
               style={{ transform: `scale(${imageZoom})` }}

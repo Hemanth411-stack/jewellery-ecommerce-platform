@@ -1,5 +1,6 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import cartService from "./cartService.js";
+import { getAvailableCartItems } from "../../utils/cartItems.js";
 
 const initialState = {
   items: [],
@@ -77,7 +78,7 @@ const cartSlice = createSlice({
   },
   extraReducers: (builder) => {
     const setCart = (state, action) => {
-      state.items = action.payload.cart.items || [];
+      state.items = getAvailableCartItems(action.payload.cart?.items);
       state.message = action.payload.message;
     };
 
@@ -108,7 +109,11 @@ const cartSlice = createSlice({
       })
       .addCase(updateCartItem.fulfilled, setCart)
       .addCase(removeFromCart.fulfilled, setCart)
-      .addCase(clearCart.fulfilled, setCart);
+      .addCase(clearCart.fulfilled, setCart)
+      .addMatcher(
+        (action) => [updateCartItem.rejected.type, removeFromCart.rejected.type, clearCart.rejected.type].includes(action.type),
+        (state, action) => { state.error = action.payload || "Could not update the cart. Please try again."; }
+      );
   },
 });
 

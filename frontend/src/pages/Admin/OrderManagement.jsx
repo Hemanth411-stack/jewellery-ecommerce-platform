@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import Loader from "../../components/common/Loader.jsx";
+import ShippingLabels from "./ShippingLabels.jsx";
 import {
   clearOrderStatus,
   fetchAdminOrders,
@@ -138,6 +139,7 @@ function DetailModal({ order, mode, onClose }) {
             </div>
             <div className="grid gap-5 xl:grid-cols-2">
               <AddressBlock title="Delivery Address" address={order.deliveryAddress} />
+              <p className="text-sm font-semibold text-ink">Delivery service: {order.deliveryProvider || "DTDC"}</p>
               <AddressBlock title="Billing Address" address={order.billingAddress} />
               <div className="rounded-md border border-ink/10 bg-white p-4 xl:col-span-2">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-bronze">Latest Order</p>
@@ -247,6 +249,7 @@ function OrderManagement() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [detailMode, setDetailMode] = useState("order");
   const [trackingDrafts, setTrackingDrafts] = useState({});
+  const [labelOrder, setLabelOrder] = useState(null);
 
   useEffect(() => {
     dispatch(fetchAdminOrders());
@@ -292,6 +295,7 @@ function OrderManagement() {
 
   return (
     <section className="px-4 py-6 sm:px-6 lg:px-8">
+      <ShippingLabels order={labelOrder} onClose={() => setLabelOrder(null)} />
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-md border border-ink/10 bg-white p-5 shadow-soft">
           <p className="text-sm text-ink/55">Total Orders</p>
@@ -360,7 +364,7 @@ function OrderManagement() {
                   <th className="px-5 py-4">Items</th>
                   <th className="px-5 py-4">Total</th>
                   <th className="px-5 py-4">Status</th>
-                  <th className="px-5 py-4">DTDC Reference</th>
+                  <th className="px-5 py-4">Delivery / Tracking</th>
                   <th className="px-5 py-4 text-right">Actions</th>
                 </tr>
               </thead>
@@ -400,6 +404,7 @@ function OrderManagement() {
                         </div>
                       </td>
                       <td className="px-5 py-4">
+                        <p className="mb-2 text-sm font-semibold text-ink">{order.deliveryProvider || "DTDC"}</p>
                         <div className="flex min-w-56 gap-2">
                           <input
                             type="text"
@@ -408,7 +413,7 @@ function OrderManagement() {
                               ...current,
                               [order._id]: event.target.value,
                             }))}
-                            placeholder="Enter DTDC reference"
+                            placeholder={`Enter ${order.deliveryProvider || "DTDC"} reference`}
                             maxLength={100}
                             className="min-w-0 flex-1 rounded-md border border-ink/10 bg-white px-3 py-2 text-xs outline-none focus:border-bronze"
                           />
@@ -424,6 +429,9 @@ function OrderManagement() {
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex justify-end gap-2">
+                          <button type="button" onClick={() => setLabelOrder(order)} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-ink/10 px-3 py-2 text-xs font-semibold text-ink hover:border-bronze">
+                            <ReceiptText size={15} /> Print Shipping Label
+                          </button>
                           <button
                             type="button"
                             onClick={() => openDetails(order, "order")}

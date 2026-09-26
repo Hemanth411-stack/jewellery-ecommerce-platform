@@ -57,6 +57,7 @@ const orderSchema = new mongoose.Schema(
       enum: ["COD", "ONLINE"],
       default: "ONLINE",
     },
+    deliveryProvider: { type: String, enum: ["DTDC", "Postman"], default: "DTDC" },
     paymentStatus: {
       type: String,
       enum: ["pending", "paid", "unpaid"],

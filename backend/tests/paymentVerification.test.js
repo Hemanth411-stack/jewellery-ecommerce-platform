@@ -64,6 +64,19 @@ test("online checkout charges only the item price, including below the old shipp
   assert.equal(savedOrder.itemsTotal, 500);
   assert.equal(savedOrder.shippingFee, 0);
   assert.equal(savedOrder.grandTotal, 500);
+  assert.equal(savedOrder.deliveryProvider, "DTDC");
+  await createOnlineOrderFromCart({
+    userId: "507f1f77bcf86cd799439012",
+    billingAddress: savedOrder.billingAddress.toObject(),
+    deliveryAddress: savedOrder.deliveryAddress.toObject(),
+    deliveryProvider: "Postman",
+  });
+  assert.equal(savedOrder.deliveryProvider, "Postman");
+  assert.equal(requestedAmount, 50000);
+});
+
+test("checkout rejects unsupported delivery services before starting payment", async () => {
+  await assert.rejects(createOnlineOrderFromCart({ deliveryProvider: "Unknown" }), { statusCode: 400 });
 });
 
 test("online payment rejects forged signatures and wrong amounts", async () => {

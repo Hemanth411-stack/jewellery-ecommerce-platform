@@ -12,6 +12,8 @@ import {
   updateProduct,
 } from "../../features/products/productSlice.js";
 import { searchProducts } from "../../utils/productSearch.js";
+import { uploadMedia } from "../../services/mediaUpload.js";
+import { omitUnchangedMedia } from "../../utils/productUpdate.js";
 
 const emptyForm = {
   name: "",
@@ -75,7 +77,7 @@ function ProductManagement() {
     }));
   };
 
-  const handleImageUpload = (event) => {
+  const handleImageUpload = async (event) => {
     const files = Array.from(event.target.files || []);
 
     if (files.length === 0) return;
@@ -88,17 +90,6 @@ function ProductManagement() {
       return;
     }
 
-    files.slice(0, availableSlots).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        setFormData((current) => ({
-          ...current,
-          images: current.images.length < 5 ? [...current.images, reader.result] : current.images,
-        }));
-      };
-      reader.readAsDataURL(file);
-    });
-
     if (files.length > availableSlots) {
       setLocalError("Only 5 images are allowed. Extra images were skipped.");
     } else {
@@ -106,22 +97,26 @@ function ProductManagement() {
     }
 
     event.target.value = "";
+    const results = await Promise.allSettled(files.slice(0, availableSlots).map(uploadMedia));
+    setFormData((current) => ({
+      ...current,
+      images: [...current.images, ...results.filter((result) => result.status === "fulfilled").map((result) => result.value)].slice(0, 5),
+    }));
+    const failed = results.find((result) => result.status === "rejected");
+    if (failed) setLocalError(failed.reason.message);
   };
 
-  const handleVideoUpload = (event) => {
+  const handleVideoUpload = async (event) => {
     const file = event.target.files?.[0];
 
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      setFormData((current) => ({
-        ...current,
-        video: reader.result,
-      }));
-    };
-    reader.readAsDataURL(file);
     event.target.value = "";
+    try {
+      const video = await uploadMedia(file);
+      setFormData((current) => ({ ...current, video }));
+      setLocalError("");
+    } catch (error) { setLocalError(error.message); }
   };
 
   const addImageUrl = () => {
@@ -262,7 +257,9 @@ function ProductManagement() {
 
     try {
       if (editingProductId) {
-        await dispatch(updateProduct({ productId: editingProductId, productData: payload })).unwrap();
+        const existingProduct = products.find((product) => product._id === editingProductId);
+        const productData = existingProduct ? omitUnchangedMedia(payload, existingProduct) : payload;
+        await dispatch(updateProduct({ productId: editingProductId, productData })).unwrap();
       } else {
         await dispatch(createProduct(payload)).unwrap();
       }
@@ -458,8 +455,9 @@ function ProductManagement() {
               <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-md border border-ink/10 bg-white px-4 py-2 text-sm font-semibold text-ink">
                 <Plus size={17} />
                 Upload Image
-                <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageUpload} />
+                <input type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif" multiple className="hidden" onChange={handleImageUpload} />
               </label>
+              <p className="mt-2 text-xs text-ink/55">Up to 10 MB per image. Images are uploaded to Cloudinary as WebP.</p>
               {formData.images.length > 0 && (
                 <div className="mt-4 grid grid-cols-4 gap-3">
                   {formData.images.map((image, index) => (
@@ -488,8 +486,9 @@ function ProductManagement() {
               <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-md border border-ink/10 bg-white px-4 py-2 text-sm font-semibold text-ink">
                 <Plus size={17} />
                 Upload Video
-                <input type="file" accept="video/*" className="hidden" onChange={handleVideoUpload} />
+                <input type="file" accept="video/mp4,video/webm,video/quicktime,video/x-m4v,video/mpeg,video/ogg" className="hidden" onChange={handleVideoUpload} />
               </label>
+              <p className="mt-2 text-xs text-ink/55">Videos up to 50 MB. MP4 is recommended for playback.</p>
               {formData.video && (
                 <div className="mt-4 rounded-md bg-white p-3">
                   <video src={formData.video} controls className="max-h-52 w-full rounded-md bg-ink" />

@@ -118,12 +118,13 @@ function Orders() {
                       {order.status}
                     </span>
                     <span className="text-sm font-bold text-ink">{formatPrice(order.grandTotal)}</span>
+                    <p className="text-sm text-ink/65">Delivery service: {order.deliveryProvider || "DTDC"}</p>
                     {order.trackingReference && (
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-xs text-ink/55">
-                          DTDC Ref: <strong className="text-ink">{order.trackingReference}</strong>
+                          {order.deliveryProvider || "DTDC"} Ref: <strong className="text-ink">{order.trackingReference}</strong>
                         </span>
-                        <a
+                        {(order.deliveryProvider || "DTDC") === "DTDC" && <a
                           href={DTDC_TRACKING_URL}
                           target="_blank"
                           rel="noopener noreferrer"
@@ -133,7 +134,7 @@ function Orders() {
                           <Truck size={16} />
                           Track with DTDC
                           <ExternalLink size={14} />
-                        </a>
+                        </a>}
                       </div>
                     )}
                   </div>

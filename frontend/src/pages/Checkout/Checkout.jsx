@@ -8,6 +8,7 @@ import Loader from "../../components/common/Loader.jsx";
 import { fetchCart } from "../../features/cart/cartSlice.js";
 import { clearOrderStatus, confirmOnlineOrder } from "../../features/orders/orderSlice.js";
 import orderService from "../../features/orders/orderService.js";
+import { beginOperation } from "../../services/operationActivity.js";
 
 const emptyAddress = {
   fullName: "",
@@ -28,15 +29,19 @@ const formatPrice = (price) =>
     maximumFractionDigits: 0,
   }).format(price || 0);
 
-const getItemPrice = (item) => item.variant?.price ?? item.product.price;
+import { getCartItemPrice as getItemPrice } from "../../utils/cartItems.js";
 const getVariantLabel = (variant) => [variant?.color, variant?.size].filter(Boolean).join(" / ");
 
 const loadRazorpay = () => new Promise((resolve, reject) => {
   if (window.Razorpay) return resolve();
   const script = document.createElement("script");
+  const timer = window.setTimeout(() => {
+    script.remove();
+    reject(new Error("Payment checkout took too long to load. Please try again."));
+  }, 20000);
   script.src = "https://checkout.razorpay.com/v1/checkout.js";
-  script.onload = resolve;
-  script.onerror = () => reject(new Error("Could not load Razorpay checkout. Please try again."));
+  script.onload = () => { window.clearTimeout(timer); resolve(); };
+  script.onerror = () => { window.clearTimeout(timer); reject(new Error("Could not load Razorpay checkout. Please try again.")); };
   document.body.appendChild(script);
 });
 
@@ -65,6 +70,7 @@ function Checkout() {
   const { items, isLoading } = useSelector((state) => state.cart);
   const { latestOrder, isPlacing, error, message } = useSelector((state) => state.orders);
   const [sameAsDelivery, setSameAsDelivery] = useState(true);
+  const [deliveryProvider, setDeliveryProvider] = useState("DTDC");
   const [formData, setFormData] = useState({
     deliveryAddress: {
       ...emptyAddress,
@@ -156,12 +162,14 @@ function Checkout() {
     if (!validate()) return;
 
     const checkoutData = {
+      deliveryProvider,
       deliveryAddress: formData.deliveryAddress,
       billingAddress: sameAsDelivery ? formData.deliveryAddress : formData.billingAddress,
     };
 
     setOnlineBusy(true);
     setLocalError("");
+    const finishPreparing = beginOperation();
     try {
         await loadRazorpay();
         const { payment } = await orderService.startOnlineCheckout(checkoutData);
@@ -203,7 +211,7 @@ function Checkout() {
     } catch (checkoutError) {
       setLocalError(checkoutError.response?.data?.message || checkoutError.message || "Could not start payment.");
       setOnlineBusy(false);
-    }
+    } finally { finishPreparing(); }
   };
 
   const handleRetryVerification = async () => {
@@ -248,6 +256,18 @@ function Checkout() {
                 <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-bronze">Step 01</p><h2 className="mt-1 font-display text-2xl font-bold text-ink">Delivery address</h2><p className="mt-1 text-sm text-ink/50">Where should we send your order?</p></div>
               </div>
               <AddressFields prefix="deliveryAddress" values={formData.deliveryAddress} onChange={handleChange} />
+              <fieldset className="mt-6 border-t border-ink/10 pt-5" disabled={onlineBusy || isPlacing || Boolean(pendingVerification)}>
+                <legend className="px-1 text-sm font-semibold text-ink">Preferred delivery service</legend>
+                <p className="mb-3 text-sm text-ink/55">Choose the service available near your address.</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {["DTDC", "Postman"].map((provider) => (
+                    <label key={provider} className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-md border px-4 py-3 text-sm font-semibold ${deliveryProvider === provider ? "border-bronze bg-champagne text-ink" : "border-ink/10 text-ink/70"}`}>
+                      <input type="radio" name="deliveryProvider" value={provider} checked={deliveryProvider === provider} onChange={(event) => setDeliveryProvider(event.target.value)} className="h-4 w-4 accent-bronze" />
+                      {provider}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
             </section>
 
             <section className="rounded-2xl border border-ink/10 bg-white p-4 shadow-soft sm:p-7">
@@ -293,6 +313,7 @@ function Checkout() {
                 </div>
                 <div className="mt-5 flex items-center justify-between gap-4 border-t border-ink/10 pt-5"><span className="text-sm font-bold text-ink">Item total</span><span className="text-xl font-bold text-bronze">{formatPrice(totals.itemsTotal)}</span></div>
                 <p className="mt-2 text-xs text-ink/50">Only the item cost is charged.</p>
+                <p className="mt-2 text-sm text-ink/65">Delivery service: <span className="font-semibold">{deliveryProvider}</span></p>
                 {(localError || error) && <div role="alert" className="mt-5 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{localError || error}</div>}
                 {pendingVerification && (
                   <button

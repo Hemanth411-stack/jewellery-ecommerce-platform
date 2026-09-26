@@ -5,6 +5,7 @@ import {
   removeItemFromCart,
   updateCartItemQuantity,
 } from "../services/cartService.js";
+import { cartResponse } from "../utils/productPreview.js";
 
 export const getCart = async (req, res, next) => {
   try {
@@ -13,7 +14,7 @@ export const getCart = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Cart fetched successfully",
-      cart,
+      cart: await cartResponse(cart),
     });
   } catch (error) {
     next(error);
@@ -27,7 +28,7 @@ export const addToCart = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Product added to cart",
-      cart,
+      cart: await cartResponse(cart),
     });
   } catch (error) {
     next(error);
@@ -41,7 +42,7 @@ export const updateCartItem = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Cart updated successfully",
-      cart,
+      cart: await cartResponse(cart),
     });
   } catch (error) {
     next(error);
@@ -55,7 +56,7 @@ export const removeFromCart = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Product removed from cart",
-      cart,
+      cart: await cartResponse(cart),
     });
   } catch (error) {
     next(error);
@@ -69,7 +70,7 @@ export const clearCart = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Cart cleared successfully",
-      cart,
+      cart: await cartResponse(cart),
     });
   } catch (error) {
     next(error);

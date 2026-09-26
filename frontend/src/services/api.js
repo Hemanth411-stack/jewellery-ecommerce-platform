@@ -1,4 +1,5 @@
 import axios from "axios";
+import { trackApiOperations } from "./operationActivity.js";
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api",
@@ -6,6 +7,8 @@ const api = axios.create({
     "Content-Type": "application/json",
   },
 });
+
+trackApiOperations(api);
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
@@ -15,6 +18,6 @@ api.interceptors.request.use((config) => {
   }
 
   return config;
-});
+}, undefined, { synchronous: true });
 
 export default api;

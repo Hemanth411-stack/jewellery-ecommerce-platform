@@ -144,13 +144,15 @@ function Home() {
       </section>
 
       {sourceProducts.length > 0 && (
-        <section id="about" className="px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
+        <section id="about" className="px-4 pb-4 pt-6 sm:px-6 sm:pb-5 sm:pt-8 lg:px-8">
           <SectionTitle
             eyebrow="Categories"
             title="Explore by Style"
             description="Choose a category to jump into the live catalogue."
+            compact
           />
           <div className="mx-auto flex max-w-7xl gap-4 overflow-x-auto pb-2">
+            <div className="mx-auto flex w-max shrink-0 gap-4">
             {categoryOptions.filter((categoryName) => categoryName !== "All").map((categoryName) => {
               const matchingProduct = sourceProducts.find((product) => product.category === categoryName);
               const image = matchingProduct?.images?.[0];
@@ -169,15 +171,17 @@ function Home() {
                 </button>
               );
             })}
+            </div>
           </div>
         </section>
       )}
 
-      <section className="bg-pearl px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
+      <section className="bg-pearl px-4 pb-8 pt-4 sm:px-6 sm:pb-10 sm:pt-5 lg:px-8">
         <SectionTitle
           eyebrow="Most Gifted"
           title="Customer Favourite Picks"
           description="A quick rail for your most giftable and featured pieces."
+          compact
         />
         <div className="mx-auto grid max-w-7xl grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4">
           {mostGiftedProducts.map((product) => (

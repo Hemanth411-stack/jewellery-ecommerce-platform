@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { Link, Navigate } from "react-router-dom";
 import Button from "../../components/common/Button.jsx";
 import Loader from "../../components/common/Loader.jsx";
+import { getCartItemPrice as getItemPrice } from "../../utils/cartItems.js";
 import {
   fetchCart,
   removeFromCart,
@@ -17,7 +18,6 @@ const formatPrice = (price) =>
     maximumFractionDigits: 0,
   }).format(price || 0);
 
-const getItemPrice = (item) => item.variant?.price ?? item.product.price;
 const getVariantLabel = (variant) => [variant?.color, variant?.size].filter(Boolean).join(" / ");
 
 function Cart() {

@@ -140,7 +140,7 @@ const productSlice = createSlice({
       .addCase(updateProduct.fulfilled, (state, action) => {
         state.isSaving = false;
         state.products = state.products.map((product) =>
-          product._id === action.payload.product._id ? action.payload.product : product
+          product._id === action.payload.product._id ? { ...product, ...action.payload.product } : product
         );
         state.message = action.payload.message;
       })
