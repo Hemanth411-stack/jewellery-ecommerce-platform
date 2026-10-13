@@ -3,7 +3,10 @@ import {
   formatUserResponse,
   updateUserProfile,
   validateUserCredentials,
+  createPasswordResetOtp,
+  resetPasswordWithOtp,
 } from "../services/authService.js";
+import { sendPasswordResetOtp } from "../services/emailService.js";
 import AppError from "../utils/appError.js";
 import generateToken from "../utils/generateToken.js";
 
@@ -52,6 +55,32 @@ export const loginUser = async (req, res, next) => {
       user,
       token,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const requestPasswordReset = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!required(email)) throw new AppError("Email is required", 400);
+    const reset = await createPasswordResetOtp(email);
+    if (!reset) throw new AppError("No account is registered with this email", 404);
+    await sendPasswordResetOtp(email.toLowerCase().trim(), reset.otp);
+    res.status(200).json({ success: true, message: "A password reset OTP has been sent to your registered email" });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const resetPassword = async (req, res, next) => {
+  try {
+    const { email, otp, password } = req.body;
+    if (![email, otp, password].every(required)) throw new AppError("Email, OTP, and new password are required", 400);
+    if (!/^\d{6}$/.test(String(otp))) throw new AppError("OTP must be 6 digits", 400);
+    if (String(password).length < 6) throw new AppError("Password must be at least 6 characters", 400);
+    await resetPasswordWithOtp(email, String(otp), password);
+    res.status(200).json({ success: true, message: "Password reset successful. You can now log in" });
   } catch (error) {
     next(error);
   }

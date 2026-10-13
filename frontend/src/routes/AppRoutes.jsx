@@ -7,6 +7,7 @@ import Cart from "../pages/Cart/Cart.jsx";
 import Checkout from "../pages/Checkout/Checkout.jsx";
 import Home from "../pages/Home/Home.jsx";
 import Login from "../pages/Login/Login.jsx";
+import ForgotPassword from "../pages/ForgotPassword/ForgotPassword.jsx";
 import Orders from "../pages/Orders/Orders.jsx";
 import Profile from "../pages/Profile/Profile.jsx";
 import ProductDetails from "../pages/ProductDetails/ProductDetails.jsx";
@@ -19,6 +20,7 @@ function AppRoutes() {
       <Route element={<MainLayout />}>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/checkout" element={<Checkout />} />

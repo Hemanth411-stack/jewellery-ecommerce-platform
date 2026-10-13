@@ -434,6 +434,13 @@ function ProductDetails() {
                 </div>
               )}
 
+              {selectedProduct.storage && (
+                <div className="mt-4 rounded-md border border-ink/10 bg-white px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink/40">Storage</p>
+                  <p className="mt-2 text-sm leading-6 text-ink/65">{selectedProduct.storage}</p>
+                </div>
+              )}
+
               <div className="mt-8 grid gap-3 sm:grid-cols-2">
                 <div className="flex items-center gap-3 rounded-md bg-champagne px-4 py-3 text-sm font-semibold text-ink/70">
                   <Truck size={20} className="text-bronze" />

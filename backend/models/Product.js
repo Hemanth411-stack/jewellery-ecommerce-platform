@@ -97,6 +97,11 @@ const productSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    storage: {
+      type: String,
+      trim: true,
+      default: "",
+    },
     tags: {
       type: [String],
       default: [],

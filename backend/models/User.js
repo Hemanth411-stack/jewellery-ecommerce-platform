@@ -24,6 +24,14 @@ const userSchema = new mongoose.Schema(
       required: true,
       select: false,
     },
+    passwordResetOtpHash: {
+      type: String,
+      select: false,
+    },
+    passwordResetOtpExpiresAt: {
+      type: Date,
+      select: false,
+    },
     role: {
       type: String,
       enum: ["customer", "admin"],

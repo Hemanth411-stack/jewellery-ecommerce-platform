@@ -19,6 +19,7 @@ const emptyForm = {
   name: "",
   category: "Rings",
   description: "",
+  storage: "",
   price: "",
   compareAtPrice: "",
   stock: "",
@@ -237,6 +238,7 @@ function ProductManagement() {
     name: formData.name,
     category: formData.category,
     description: formData.description,
+    storage: formData.storage.trim(),
     price: formData.variants.length ? Math.min(...formData.variants.map((option) => Number(option.price))) : Number(formData.price),
     compareAtPrice: formData.variants.length ? 0 : Number(formData.compareAtPrice) || 0,
     stock: formData.variants.length ? formData.variants.reduce((total, option) => total + Number(option.stock), 0) : Number(formData.stock),
@@ -278,6 +280,7 @@ function ProductManagement() {
       name: product.name || "",
       category: product.category || "Rings",
       description: product.description || "",
+      storage: product.storage || "",
       price: product.price || "",
       compareAtPrice: product.compareAtPrice || "",
       stock: product.stock || "",
@@ -377,6 +380,7 @@ function ProductManagement() {
                 placeholder="Detailed product story, finish, setting, and usage."
               />
             </label>
+            <Input label="Storage" name="storage" value={formData.storage} onChange={handleChange} placeholder="Jewellery box, pouch, or storage guidance" />
             {formData.variants.length === 0 ? <div className="grid gap-4 sm:grid-cols-3">
               <Input label="Price" name="price" type="number" min="0" value={formData.price} onChange={handleChange} placeholder="42999" />
               <Input label="Compare Price" name="compareAtPrice" type="number" min="0" value={formData.compareAtPrice} onChange={handleChange} placeholder="48999" />

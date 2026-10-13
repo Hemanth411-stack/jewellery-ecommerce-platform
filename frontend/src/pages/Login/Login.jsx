@@ -101,6 +101,9 @@ function Login() {
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
+            <div className="text-right">
+              <Link to={`/forgot-password?email=${encodeURIComponent(formData.email)}`} className="text-sm font-semibold text-bronze hover:text-rosewood">Forgot password?</Link>
+            </div>
             <Button type="submit" isLoading={isLoading} className="w-full">
               Login
             </Button>

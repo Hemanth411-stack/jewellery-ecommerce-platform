@@ -10,6 +10,16 @@ const login = async (credentials) => {
   return response.data;
 };
 
+const requestPasswordReset = async (email) => {
+  const response = await api.post("/auth/forgot-password", { email });
+  return response.data;
+};
+
+const resetPassword = async (data) => {
+  const response = await api.post("/auth/reset-password", data);
+  return response.data;
+};
+
 const getCurrentUser = async () => {
   const response = await api.get("/auth/me");
   return response.data;
@@ -28,6 +38,8 @@ const logout = () => {
 export default {
   register,
   login,
+  requestPasswordReset,
+  resetPassword,
   getCurrentUser,
   updateCurrentUser,
   logout,

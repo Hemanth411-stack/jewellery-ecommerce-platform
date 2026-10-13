@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import User from "../models/User.js";
 import AppError from "../utils/appError.js";
 
@@ -76,6 +77,31 @@ export const updateUserProfile = async (userId, { name, email, phone }) => {
   }
 
   return sanitizeUser(user);
+};
+
+export const createPasswordResetOtp = async (email) => {
+  const user = await User.findOne({ email: email.toLowerCase().trim() });
+  if (!user) return null;
+
+  const otp = crypto.randomInt(100000, 1000000).toString();
+  user.passwordResetOtpHash = crypto.createHash("sha256").update(otp).digest("hex");
+  user.passwordResetOtpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+  await user.save({ validateBeforeSave: false });
+  return { user, otp };
+};
+
+export const resetPasswordWithOtp = async (email, otp, password) => {
+  const user = await User.findOne({ email: email.toLowerCase().trim() }).select("+passwordResetOtpHash +passwordResetOtpExpiresAt");
+  const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
+
+  if (!user || !user.passwordResetOtpHash || user.passwordResetOtpHash !== otpHash || user.passwordResetOtpExpiresAt < new Date()) {
+    throw new AppError("Invalid or expired OTP", 400);
+  }
+
+  user.password = await bcrypt.hash(password, 10);
+  user.passwordResetOtpHash = undefined;
+  user.passwordResetOtpExpiresAt = undefined;
+  await user.save();
 };
 
 export const formatUserResponse = sanitizeUser;
